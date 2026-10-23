@@ -1,7 +1,7 @@
 ---
 name: claude-code
 description: "Delegate coding to Claude Code CLI (features, PRs)."
-version: 2.2.1
+version: 2.3.0
 author: Hermes Agent + Teknium
 license: MIT
 platforms: [linux, macos, windows]
@@ -77,6 +77,30 @@ terminal(command="tmux send-keys -t claude-work '/exit' Enter")
 - Tasks requiring human-in-the-loop decisions
 - Exploratory coding sessions
 - When you need to use Claude's slash commands (`/compact`, `/review`, `/model`)
+
+## Kanban Workers: Make the Session Reopenable
+
+When you run as a kanban worker (task id from `kanban_show()`), the card's **Open session** button (`hermes kanban open-session <task_id>`) reopens your Claude Code session in Warp. It attaches to a live tmux session `hc-<task_id>` first. If there isn't one, it runs `claude --resume <recorded id>` in the recorded cwd, and only otherwise starts a fresh `claude`. Attach and resume only work if you follow these rules:
+
+1. **Name the tmux session `hc-<task_id>`** (not `claude-work`/`review`). Open session finds a live session by that name with nothing recorded.
+2. **Preassign the Claude session id** with `--session-id <uuid>` so you know it before Claude starts. Print mode also returns `session_id` in `--output-format json`, but only after the run ends.
+3. **Report it in the handoff metadata** of `kanban_complete` / `kanban_request_review`: `{"claude_session_id": "<uuid>", "tmux_session": "hc-<task_id>", "claude_cwd": "/abs/worktree"}`. This metadata is merged into the run, so Open session can resume after you exit.
+
+Write the task id literally (e.g. `t_f050e487`). `terminal` subprocesses do NOT see `$HERMES_KANBAN_TASK` (it is scrubbed), so `hc-$HERMES_KANBAN_TASK` silently becomes `hc-`. Do not call `hermes kanban claude-session record` from `terminal` either. Worker descendants are fenced from Kanban CLI mutations, and it fails with "delegate_task child contexts cannot mutate Kanban tasks via the CLI". That command is for an operator's shell.
+
+Interactive (one `terminal` call; replace `t_XXXX` and the worktree path; needs `tmux` installed):
+```
+terminal(command="SID=$(python3 -c 'import uuid; print(uuid.uuid4())'); echo $SID; tmux new-session -d -s hc-t_XXXX -x 140 -y 40 -c /path/to/worktree && tmux send-keys -t hc-t_XXXX \"claude --session-id $SID\" Enter")
+```
+Then drive it with `tmux send-keys -t hc-t_XXXX ...` as in Mode 2.
+
+Print mode:
+```
+terminal(command="SID=$(python3 -c 'import uuid; print(uuid.uuid4())'); echo $SID; claude -p 'task' --session-id $SID --output-format json --max-turns 10", workdir="/path/to/worktree", timeout=600)
+```
+Follow-up print calls use `--resume $SID`, because reusing `--session-id` on an existing id errors. If you `--fork-session`, report the new `session_id` from the JSON output instead. Use the session the user should continue in.
+
+Killing `hc-<task_id>` at the end is fine: Open session then resumes the reported id. Known gap: if the worker crashes before its handoff, the id is lost, and Open session attaches to a live `hc-<task_id>` or starts fresh. A `kanban_comment` with the id at least lets a human run `claude --resume <id>` by hand.
 
 ## PTY Dialog Handling (CRITICAL for Interactive Mode)
 
@@ -748,7 +772,7 @@ Use `/context` in interactive mode to see a colored grid of context usage. Key t
 4. **Set `--max-turns` in print mode** — prevents infinite loops and runaway costs
 5. **Monitor tmux sessions** — use `tmux capture-pane -t <session> -p -S -50` to check progress
 6. **Look for the `❯` prompt** — indicates Claude is waiting for input (done or asking a question)
-7. **Clean up tmux sessions** — kill them when done to avoid resource leaks
+7. **Clean up tmux sessions** — kill them when done to avoid resource leaks (kanban workers: name it `hc-<task_id>` and report the session id in the handoff, see "Kanban Workers")
 8. **Report results to user** — after completion, summarize what Claude did and what changed
 9. **Don't kill slow sessions** — Claude may be doing multi-step work; check progress instead
 10. **Use `--allowedTools`** — restrict capabilities to what the task actually needs

@@ -1,5 +1,6 @@
 import { createContext, memo, useCallback, useContext, useMemo, useRef, useState } from 'react'
 
+import { useWorkerSession } from '@/app/chat/use-worker-session'
 import { ChatEmptySlot } from '@/components/assistant-ui/chat-empty-slot'
 import { AssistantMessage } from '@/components/assistant-ui/thread/assistant-message'
 import { ThreadMessageList } from '@/components/assistant-ui/thread/list'
@@ -73,11 +74,18 @@ export const Thread = memo(function Thread({
   const { t } = useI18n()
   const copy = t.assistant.thread
   const { isHistorical } = useTranscriptWindow()
+  const workerSession = useWorkerSession()
 
   if (isHistorical) {
     onBranchInNewChat = undefined
     onCancel = undefined
     onDismissError = undefined
+    onRestoreToMessage = undefined
+  }
+
+  // A kanban worker's transcript is read-only: no branch or rewind (worker-sessions.ts).
+  if (workerSession) {
+    onBranchInNewChat = undefined
     onRestoreToMessage = undefined
   }
 

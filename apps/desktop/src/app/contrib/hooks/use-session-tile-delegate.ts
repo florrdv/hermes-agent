@@ -43,6 +43,7 @@ import type { usePromptActions } from '../../session/hooks/use-prompt-actions'
 import { singleFlightSessionResume } from '../../session/hooks/use-prompt-actions/single-flight-resume'
 import { markSessionRecentlyInterrupted, withSessionNotFoundResume } from '../../session/hooks/use-prompt-actions/utils'
 import type { useSessionActions } from '../../session/hooks/use-session-actions'
+import { workerTileTranscript } from '../../session/hooks/use-session-actions/read-only-recovery'
 import {
   chatMessageArraysEquivalent,
   overlayConcurrentMessageChanges,
@@ -450,6 +451,22 @@ export function useSessionTileDelegate({
           )
 
           return existing
+        }
+
+        // A kanban worker's transcript never resumes (worker-sessions.ts): the
+        // tile shows its stored page under a read-only runtime id.
+        const workerMessages = await workerTileTranscript(storedSessionId, prefetchPromise, restScope)
+
+        if (workerMessages) {
+          const readOnlyId = readOnlyRuntimeIdFor(storedSessionId)
+
+          updateSessionState(
+            readOnlyId,
+            state => ({ ...state, busy: false, awaitingResponse: false, messages: toChatMessages(workerMessages) }),
+            storedSessionId
+          )
+
+          return readOnlyId
         }
 
         // #94724 no-owner recovery: dispatching the resume through the same

@@ -4191,6 +4191,9 @@ catalog: CatalogTranslations
     readOnlyTranscriptTitle: string
     readOnlyTranscriptBody: string
     readOnlyTranscriptSendBlocked: string
+    workerSessionLive: string
+    workerSessionFinished: string
+    workerSessionOpenCard: string
     resumeStrandedTitle: string
     resumeStrandedBody: string
     poolSlotTimeoutBody: string

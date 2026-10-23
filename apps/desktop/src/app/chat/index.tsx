@@ -2,7 +2,7 @@ import { type AppendMessage, AssistantRuntimeProvider, type ThreadMessage } from
 import { useStore } from '@nanostores/react'
 import type { ReadableAtom } from 'nanostores'
 import type * as React from 'react'
-import { memo, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
 
 import type { SubmitTextOptions } from '@/app/session/hooks/use-prompt-actions/utils'
@@ -60,7 +60,7 @@ import { titlebarHeaderBaseClass, titlebarHeaderShadowClass, titlebarHeaderTitle
 import { ChatDropOverlay } from './chat-drop-overlay'
 import { dropOverlayKind, useShowChatBar } from './chat-surface-state'
 import { ChatSwapOverlay, ChatSyncBadge } from './chat-swap-overlay'
-import { ChatBar, ChatBarFallback } from './composer'
+import { ChatBar } from './composer'
 import { FloatingComposerSurface } from './composer/floating-surface'
 import { requestComposerInsert } from './composer/focus'
 import { droppedFileInlineRefs } from './composer/inline-refs'
@@ -70,6 +70,7 @@ import {
   useComposerScope,
   useComposerSurfaceId
 } from './composer/scope'
+import { WorkerAwareComposerSlot } from './composer/worker-session-notice'
 import { useHistoryWindow } from './history-window'
 import { type DroppedFile, partitionDroppedFiles } from './hooks/use-composer-actions'
 import { useFileDropZone } from './hooks/use-file-drop-zone'
@@ -90,6 +91,7 @@ import {
 import { advanceSessionTranscriptWindow, type SessionWindowMemo } from './transcript-window'
 import { useChatBarState } from './use-chat-bar-state'
 import { useTranscriptRetention } from './use-transcript-retention'
+import { useStaticTranscript } from './use-worker-session'
 
 interface ChatViewProps extends Omit<React.ComponentProps<'div'>, 'onSubmit'> {
   gateway: HermesGateway | null
@@ -418,6 +420,7 @@ export function ChatRuntimeBoundary({
   // still names older marks, so the entry point must stay live here too.
   const olderAvailable = history.page ? history.page.olderAvailable : windowed || restBackfillAvailable
   const isHistorical = Boolean(history.page)
+  const staticTranscript = useStaticTranscript(isHistorical)
   const newerAvailable = history.page?.newerAvailable ?? false
   const { revealRow, returnToLatest } = history
 
@@ -437,7 +440,7 @@ export function ChatRuntimeBoundary({
   const runtime = useIncrementalExternalStoreRuntime<ThreadMessage>({
     messageRepository: runtimeMessageRepository,
     isRunning: !isHistorical && busy,
-    isDisabled: isHistorical,
+    isDisabled: staticTranscript,
     setMessages: isHistorical ? undefined : onThreadMessagesChange,
     onNew: async () => {
       // Submission is handled explicitly by ChatBar.
@@ -454,7 +457,7 @@ export function ChatRuntimeBoundary({
     // sending one rewinds the live transcript and drops the page.
     onEdit,
     onCancel: isHistorical ? undefined : async () => onCancel(),
-    onReload: isHistorical ? undefined : onReload
+    onReload: staticTranscript ? undefined : onReload
   })
 
   return (
@@ -832,7 +835,7 @@ const ChatViewContent = memo(function ChatViewContent({
             clipping through a stable portal host without remounting its editor. */}
         {showChatBar && (
           <FloatingComposerSurface>
-            <Suspense fallback={<ChatBarFallback />}>
+            <WorkerAwareComposerSlot>
               <ChatBar
                 busy={busy}
                 cwd={currentCwd}
@@ -861,7 +864,7 @@ const ChatViewContent = memo(function ChatViewContent({
                 sessionId={activeSessionId}
                 state={chatBarState}
               />
-            </Suspense>
+            </WorkerAwareComposerSlot>
           </FloatingComposerSurface>
         )}
       </ChatRuntimeBoundary>

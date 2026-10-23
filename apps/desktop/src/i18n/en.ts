@@ -4749,6 +4749,9 @@ export const en: Translations = {
     readOnlyTranscriptBody:
       'No connected backend claims this older chat yet, so it opened as a read-only transcript. Its history is intact; sending is disabled until a backend claims it.',
     readOnlyTranscriptSendBlocked: 'This chat is open as a read-only transcript — sending is disabled.',
+    workerSessionLive: 'Worker session — comment on the card to steer',
+    workerSessionFinished: 'Worker session — read-only. Comment on the card to follow up',
+    workerSessionOpenCard: 'Open card',
     resumeStrandedTitle: "Couldn't load this session",
     resumeStrandedBody:
       'The connection to this session failed and automatic retries gave up. Check that the gateway is running, then try again.',

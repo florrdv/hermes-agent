@@ -5412,6 +5412,9 @@ export const esOverrides = {
       'Ningún backend conectado reclama todavía este chat antiguo, así que se abrió como transcripción de solo lectura. Su historial está intacto; el envío está desactivado hasta que un backend lo reclame.',
     readOnlyTranscriptSendBlocked:
       'Este chat está abierto como transcripción de solo lectura: el envío está desactivado.',
+    workerSessionLive: 'Sesión de worker — comenta en la tarjeta para dirigirla',
+    workerSessionFinished: 'Sesión de worker — solo lectura. Comenta en la tarjeta para continuar',
+    workerSessionOpenCard: 'Abrir tarjeta',
     resumeStrandedTitle: 'No se pudo cargar esta sesión',
     resumeStrandedBody:
       'No se pudo conectar con esta sesión y se agotaron los reintentos automáticos. Comprueba que el gateway esté en ejecución y vuelve a intentarlo.',

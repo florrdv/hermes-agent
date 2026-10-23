@@ -14,7 +14,6 @@ import { revealTreePane } from '@/components/pane-shell/tree/store'
 import { setWorkspaceScope } from '@/components/pane-shell/workspace-scope'
 import {
   deleteSession,
-  fetchStoredTranscriptAcrossBackends,
   getAllSessionMessages,
   getLatestSessionMessages,
   setSessionArchived
@@ -62,7 +61,7 @@ import {
 import { $projectScope } from '@/store/project-scope'
 import { projectProfile, resolveNewSessionCwd } from '@/store/projects'
 import { clearAllPrompts } from '@/store/prompts'
-import { clearStoredTranscriptReadOnly, markStoredTranscriptReadOnly } from '@/store/read-only-transcript'
+import { clearStoredTranscriptReadOnly } from '@/store/read-only-transcript'
 import {
   $activeSessionStoredIdRotation,
   $connection,
@@ -100,7 +99,6 @@ import {
 } from '@/store/session'
 import { clearSessionControl } from '@/store/session-control'
 import { $focusedStoredSessionId } from '@/store/session-focus'
-import { isSessionOwnerResolutionError } from '@/store/session-owner-resolution'
 import {
   beginSessionMutation,
   endSessionMutation,
@@ -136,6 +134,7 @@ import { clearSessionSubagents } from '@/store/subagents'
 import { clearSessionTodos, restoreSessionTodosFromSnapshot } from '@/store/todos'
 import { dropTranscriptTail, dropTranscriptTailEverywhere, saveTranscriptTail } from '@/store/transcript-tail-cache'
 import { isWatchWindow } from '@/store/windows'
+import { isWorkerSessionRow } from '@/store/worker-sessions'
 import type {
   SessionCreateResponse,
   SessionMessage,
@@ -161,6 +160,7 @@ import { markSessionCreatedThisRun, sessionCreatedThisRun } from './created-this
 import { captureDisplayHydration } from './display-hydration'
 import { reconcilePersistedLiveTurn } from './persisted-live-turn'
 import { provisionalTranscriptPaint, transcriptRestScope } from './provisional-transcript'
+import { openWorkerTranscript, recoverReadOnlyTranscript } from './read-only-recovery'
 import { rememberedOwnerForResume } from './remembered-owner'
 import { restorePendingApproval } from './restore-pending-approval'
 import { pendingClarifyToolPayload, restorePendingClarifyFromSnapshot } from './restore-pending-clarify'
@@ -1428,6 +1428,18 @@ export function useSessionActions({
         return
       }
 
+      // A kanban worker's transcript never resumes: it opens from REST, read-only.
+      if (isWorkerSessionRow(storedForProfile)) {
+        return openWorkerTranscript({
+          isCurrent: isCurrentResume,
+          onFailed: () => setResumeFailedSessionId(storedSessionId),
+          paintStored: messages => setMessages(toChatMessages(messages)),
+          restScope: sessionRestScope,
+          row: storedForProfile,
+          storedSessionId
+        })
+      }
+
       // Re-check after the profile-resolve / gateway-swap awaits above: the
       // cache may have changed, and takeWarmCache re-validates belongs-to and
       // purges a cross-wired mapping before we trust the fast-path.
@@ -2471,45 +2483,29 @@ export function useSessionActions({
           return
         }
 
-        // #94724 no-owner recovery: the owner ladder failed closed — which is
-        // CORRECT under registry topology — but the stored transcript may be
-        // fully intact in some backend's state.db. If the ambient REST
-        // fallback above didn't already paint it, probe the registered
-        // backends READ-ONLY (id-only GET; no live session is routed or
-        // minted anywhere). When history is reachable, open the session
-        // read-only instead of dead-ending on the resolution error: writes
-        // stay blocked, and a later resume (after the single-match owner
-        // backfill stamps the row) upgrades it back to a live session.
-        if (isSessionOwnerResolutionError(err)) {
-          let painted = !fallbackError && viewMessagesForReconcile().length > 0
+        // Readable-but-not-writable failures (#94724 no owner, a kanban refusal)
+        // open read-only instead of dead-ending: read-only-recovery.ts.
+        const recovered = await recoverReadOnlyTranscript({
+          error: err,
+          fallbackPainted: !fallbackError && viewMessagesForReconcile().length > 0,
+          isCurrent: isCurrentResume,
+          notifyReadOnly: () =>
+            notify({ kind: 'info', title: copy.readOnlyTranscriptTitle, message: copy.readOnlyTranscriptBody }),
+          paintStored: messages =>
+            setMessages(
+              reconcileAuthoritativeMessages(
+                messages,
+                resumedSameSelectedSession
+                  ? preserveLocalPendingTurnMessages(viewMessagesForReconcile(), resumeStartMessages)
+                  : viewMessagesForReconcile()
+              )
+            ),
+          row: storedForProfile,
+          storedSessionId
+        })
 
-          if (!painted) {
-            const stored = await fetchStoredTranscriptAcrossBackends(storedSessionId).catch(() => null)
-
-            if (!isCurrentResume()) {
-              return
-            }
-
-            if (stored && stored.messages.length > 0) {
-              const previousMessages = resumedSameSelectedSession
-                ? preserveLocalPendingTurnMessages(viewMessagesForReconcile(), resumeStartMessages)
-                : viewMessagesForReconcile()
-
-              setMessages(reconcileAuthoritativeMessages(stored.messages, previousMessages))
-              painted = true
-            }
-          }
-
-          if (painted) {
-            markStoredTranscriptReadOnly(storedSessionId)
-            notify({
-              kind: 'info',
-              title: copy.readOnlyTranscriptTitle,
-              message: copy.readOnlyTranscriptBody
-            })
-
-            return
-          }
+        if (recovered) {
+          return
         }
 
         // The session is genuinely gone (deleted, or a stale id from a wiped /

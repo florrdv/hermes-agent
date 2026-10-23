@@ -1114,6 +1114,24 @@ export function KanbanBoardPage() {
   const [assignee, setAssignee] = useState('')
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
 
+  // A worker session's "Open card" (its read-only composer notice) lands here
+  // as `/kanban?task=<id>`, mounted or not — so read the hash on mount and on
+  // every change.
+  useEffect(() => {
+    const openRequestedTask = () => {
+      const task = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('task')
+
+      if (task) {
+        setOpenId(task)
+      }
+    }
+
+    openRequestedTask()
+    window.addEventListener('hashchange', openRequestedTask)
+
+    return () => window.removeEventListener('hashchange', openRequestedTask)
+  }, [])
+
   // A new-task request raised from outside the page (⌘⌥N, the palette row).
   // The command navigates here and parks the lane; the page picks it up on
   // arrival — whether it was already mounted or is mounting for the first

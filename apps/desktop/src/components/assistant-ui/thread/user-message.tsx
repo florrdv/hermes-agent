@@ -1,6 +1,7 @@
 import { ActionBarPrimitive, BranchPickerPrimitive, MessagePrimitive, useAuiState } from '@assistant-ui/react'
 import { type FC, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
+import { useSpectatorTranscript } from '@/app/chat/use-worker-session'
 import { DirectiveContent } from '@/components/assistant-ui/directive-text'
 import { isAttachmentRef } from '@/components/assistant-ui/reference-kinds'
 import {
@@ -26,7 +27,6 @@ import { LruCache } from '@/lib/lru-cache'
 import { cn } from '@/lib/utils'
 import { $gateway } from '@/store/gateway'
 import { notifyThreadEditOpen } from '@/store/thread-scroll'
-import { isWatchWindow } from '@/store/windows'
 
 /** True when the user has a live text highlight (drag-select / triple-click). */
 export function hasTextSelection(): boolean {
@@ -363,10 +363,11 @@ export const UserMessage: FC<{
   const lastClampHeightRef = useRef(-1)
   const lineHeightRef = useRef(0)
 
-  // Watch windows spectate a subagent run driven elsewhere — prompts can't be
-  // edited, restored, or stopped from here. The bubble stays a button that
-  // toggles the 2-line clamp so long prompts are still fully readable.
-  const readOnly = isWatchWindow()
+  // Watch windows spectate a subagent run driven elsewhere, and a kanban
+  // worker's transcript is steered from its card — prompts can't be edited,
+  // restored, or stopped from here. The bubble stays a button that toggles the
+  // 2-line clamp so long prompts are still fully readable.
+  const readOnly = useSpectatorTranscript()
   const [expanded, setExpanded] = useState(false)
   const clampActive = !(readOnly && expanded)
 

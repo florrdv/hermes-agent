@@ -18,13 +18,15 @@
  * A second, unrelated reason a stored transcript is read-only lives here too:
  * a cron run the scheduler no longer owns but never closed (#88443). It keeps
  * its own verdict (see `$cronRunReadOnlyVerdicts` below) so a live resume
- * cannot clear it, and `isStoredTranscriptReadOnly` reports both, so every
- * write path gets one answer.
+ * cannot clear it. A kanban worker's transcript is the third
+ * (`worker-sessions.ts`), and `isStoredTranscriptReadOnly` reports all three,
+ * so every write path gets one answer.
  */
 import { atom } from 'nanostores'
 
 import type { SessionOwnerResolutionError } from './session-owner-resolution'
 import { isSessionOwnerResolutionError } from './session-owner-resolution'
+import { isWorkerSession } from './worker-sessions'
 
 /** Stored session ids currently open as read-only stored transcripts. The
  *  composer/submit surfaces consult this to refuse writes into a session
@@ -61,7 +63,7 @@ export function isStoredTranscriptReadOnly(storedSessionId: null | string | unde
 
   const id = storedSessionId.trim()
 
-  return $readOnlyStoredTranscripts.get().has(id) || isCronRunReadOnly(id)
+  return $readOnlyStoredTranscripts.get().has(id) || isCronRunReadOnly(id) || isWorkerSession(id)
 }
 
 /**

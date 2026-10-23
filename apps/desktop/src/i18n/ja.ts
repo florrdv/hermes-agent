@@ -3639,6 +3639,9 @@ export const jaOverrides = {
     readOnlyTranscriptBody:
       'この古いチャットを所有するバックエンドがまだ接続されていないため、読み取り専用のトランスクリプトとして開きました。履歴は無事です。バックエンドが所有を認識するまで送信は無効です。',
     readOnlyTranscriptSendBlocked: 'このチャットは読み取り専用トランスクリプトとして開いています。送信は無効です。',
+    workerSessionLive: 'ワーカーセッション — 指示はカードにコメントしてください',
+    workerSessionFinished: 'ワーカーセッション — 読み取り専用です。続きはカードにコメントしてください',
+    workerSessionOpenCard: 'カードを開く',
     resumeStrandedTitle: 'このセッションを読み込めませんでした',
     resumeStrandedBody:
       'このセッションへの接続に失敗し、自動再試行も停止しました。ゲートウェイが実行中か確認してから、もう一度お試しください。',

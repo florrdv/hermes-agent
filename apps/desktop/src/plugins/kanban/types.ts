@@ -94,6 +94,8 @@ export interface KanbanEvent {
   kind: string
   payload: unknown
   created_at: number
+  /** The run (attempt) the event belongs to; null for task-scoped events. */
+  run_id?: null | number
 }
 
 export interface KanbanAttachment {

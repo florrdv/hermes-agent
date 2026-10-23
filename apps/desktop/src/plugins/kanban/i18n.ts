@@ -162,6 +162,9 @@ type KanbanMessages = {
   noAttachments: string
   uploadAttachment: string
   taskActions: string
+  goToChat: string
+  goToChatTip: string
+  goToChatNoSession: string
   copyTaskId: string
   copyTitle: string
   copiedId: (id: string) => string
@@ -397,6 +400,9 @@ export const en: KanbanMessages = {
   noAttachments: 'No attachments yet.',
   uploadAttachment: 'Upload attachment',
   taskActions: 'Task actions',
+  goToChat: 'Go to chat',
+  goToChatTip: "Open the chat session the latest run's worker ran in",
+  goToChatNoSession: 'No chat yet — available once a worker has run this task',
   copyTaskId: 'Copy task id',
   copyTitle: 'Copy title',
   copiedId: id => `Copied ${id}`,
@@ -624,6 +630,9 @@ const ja: KanbanMessages = {
   noAttachments: 'まだ添付はありません。',
   uploadAttachment: '添付をアップロード',
   taskActions: 'タスクの操作',
+  goToChat: 'チャットを開く',
+  goToChatTip: '最新の実行でワーカーが使ったチャットセッションを開きます',
+  goToChatNoSession: 'まだチャットはありません — ワーカーがこのタスクを実行すると利用できます',
   copyTaskId: 'タスク ID をコピー',
   copyTitle: 'タイトルをコピー',
   copiedId: id => `${id} をコピーしました`,
@@ -849,6 +858,9 @@ const zh: KanbanMessages = {
   noAttachments: '暂无附件。',
   uploadAttachment: '上传附件',
   taskActions: '任务操作',
+  goToChat: '前往聊天',
+  goToChatTip: '打开最近一次运行中 worker 所在的聊天会话',
+  goToChatNoSession: '暂无聊天 — worker 运行此任务后可用',
   copyTaskId: '复制任务 ID',
   copyTitle: '复制标题',
   copiedId: id => `已复制 ${id}`,
@@ -1073,6 +1085,9 @@ const zhHant: KanbanMessages = {
   noAttachments: '尚無附件。',
   uploadAttachment: '上傳附件',
   taskActions: '任務操作',
+  goToChat: '前往聊天',
+  goToChatTip: '開啟最近一次執行中 worker 所在的聊天工作階段',
+  goToChatNoSession: '尚無聊天 — worker 執行此任務後可用',
   copyTaskId: '複製任務 ID',
   copyTitle: '複製標題',
   copiedId: id => `已複製 ${id}`,

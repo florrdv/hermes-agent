@@ -56,6 +56,7 @@ import {
   uploadAttachment,
   useKanbanScope
 } from './api'
+import { latestRunChatSession } from './chat-session'
 import { ModelOverrideField, overridePatch } from './model-override'
 import {
   type Diagnostic,
@@ -830,6 +831,37 @@ function FeedTabs({
   )
 }
 
+/** Open the chat session the card's latest worker ran in, through the same
+ *  `openSession` door a sidebar row click uses. The profile rides along only
+ *  when the worker ran under another profile than the one in front. */
+function GoToChatButton({ detail, onOpened }: { detail?: KanbanTaskDetail; onOpened: () => void }) {
+  const k = useKanban()
+  const session = detail ? latestRunChatSession(detail) : null
+
+  const open = () => {
+    if (!session) {
+      return
+    }
+
+    const profile = session.profile && session.profile !== host.state.profile.get() ? session.profile : null
+
+    onOpened()
+    host.openSession(session.sessionId, profile ? { profile } : {}).catch(err => host.notifyError(err, k.goToChat))
+  }
+
+  return (
+    <Tip label={session ? k.goToChatTip : k.goToChatNoSession}>
+      {/* A disabled button swallows pointer events, so the tip hangs off a wrapper. */}
+      <span className="inline-flex">
+        <Button disabled={!session} onClick={open} size="xs" variant="outline">
+          <Codicon name="comment-discussion" size="0.75rem" />
+          {k.goToChat}
+        </Button>
+      </span>
+    </Tip>
+  )
+}
+
 export function TaskDrawer({
   columns,
   id,
@@ -987,45 +1019,48 @@ export function TaskDrawer({
             )}
             <div className="ml-auto flex items-center gap-0.5">
               {task && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button aria-label={k.taskActions} size="icon-xs" variant="ghost">
-                      <Codicon name="ellipsis" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        void navigator.clipboard.writeText(task.id)
-                        host.notify({ kind: 'info', message: k.copiedId(task.id) })
-                      }}
-                    >
-                      <Codicon name="copy" size="0.85rem" />
-                      {k.copyTaskId}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        void navigator.clipboard.writeText(task.title || task.id)
-                        host.notify({ kind: 'info', message: k.copiedTitle })
-                      }}
-                    >
-                      <Codicon name="copy" size="0.85rem" />
-                      {k.copyTitle}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={mutate(() => patchTask(task.id, { status: 'archived' }), onClose)}>
-                      <Codicon name="archive" size="0.85rem" />
-                      {k.archive}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onSelect={mutate(() => deleteTask(task.id), onClose)}
-                    >
-                      <Codicon name="trash" size="0.85rem" />
-                      {k.delete}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <>
+                  <GoToChatButton detail={detail} onOpened={onClose} />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button aria-label={k.taskActions} size="icon-xs" variant="ghost">
+                        <Codicon name="ellipsis" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          void navigator.clipboard.writeText(task.id)
+                          host.notify({ kind: 'info', message: k.copiedId(task.id) })
+                        }}
+                      >
+                        <Codicon name="copy" size="0.85rem" />
+                        {k.copyTaskId}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          void navigator.clipboard.writeText(task.title || task.id)
+                          host.notify({ kind: 'info', message: k.copiedTitle })
+                        }}
+                      >
+                        <Codicon name="copy" size="0.85rem" />
+                        {k.copyTitle}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={mutate(() => patchTask(task.id, { status: 'archived' }), onClose)}>
+                        <Codicon name="archive" size="0.85rem" />
+                        {k.archive}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onSelect={mutate(() => deleteTask(task.id), onClose)}
+                      >
+                        <Codicon name="trash" size="0.85rem" />
+                        {k.delete}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
               )}
               <Button aria-label={k.close} onClick={onClose} size="icon-xs" variant="ghost">
                 <Codicon name="close" />

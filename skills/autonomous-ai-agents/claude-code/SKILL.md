@@ -80,7 +80,7 @@ terminal(command="tmux send-keys -t claude-work '/exit' Enter")
 
 ## Kanban Workers: Make the Session Reopenable
 
-When you run as a kanban worker (task id from `kanban_show()`), the card's **Open session** button (`hermes kanban open-session <task_id>`) reopens your Claude Code session in Warp. It attaches to a live tmux session `hc-<task_id>` first. If there isn't one, it runs `claude --resume <recorded id>` in the recorded cwd, and only otherwise starts a fresh `claude`. Attach and resume only work if you follow these rules:
+When you run as a kanban worker (task id from `kanban_show()`), the card's **Open session** button (`hermes kanban open-session <task_id>`) reopens your Claude Code session in Warp. It attaches to a live tmux session `hc-<task_id>` first. If there isn't one, it runs `claude --resume <recorded id>` in the recorded cwd, then tries a transcript it can infer (below), and only otherwise starts a fresh `claude`. Attach and resume only work if you follow these rules:
 
 1. **Name the tmux session `hc-<task_id>`** (not `claude-work`/`review`). Open session finds a live session by that name with nothing recorded.
 2. **Preassign the Claude session id** with `--session-id <uuid>` so you know it before Claude starts. Print mode also returns `session_id` in `--output-format json`, but only after the run ends.
@@ -100,7 +100,7 @@ terminal(command="SID=$(python3 -c 'import uuid; print(uuid.uuid4())'); echo $SI
 ```
 Follow-up print calls use `--resume $SID`, because reusing `--session-id` on an existing id errors. If you `--fork-session`, report the new `session_id` from the JSON output instead. Use the session the user should continue in.
 
-Killing `hc-<task_id>` at the end is fine: Open session then resumes the reported id. Known gap: if the worker crashes before its handoff, the id is lost, and Open session attaches to a live `hc-<task_id>` or starts fresh. A `kanban_comment` with the id at least lets a human run `claude --resume <id>` by hand.
+Killing `hc-<task_id>` at the end is fine: Open session then resumes the reported id. If the worker crashes before its handoff, the id is never recorded: Open session then attaches to a live `hc-<task_id>`, else resumes the single Claude transcript written under the task workspace during the run, else starts fresh. Still report the id in the handoff: a shared dir workspace can hold several sessions from that window, and then Open session will not guess (it lists the candidate ids instead). A `kanban_comment` with the id lets a human run `claude --resume <id>` by hand.
 
 ## PTY Dialog Handling (CRITICAL for Interactive Mode)
 

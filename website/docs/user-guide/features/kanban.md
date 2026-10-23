@@ -1081,7 +1081,8 @@ A worker can also put the same keys straight into its handoff metadata: `claude_
 
 1. **attach**: the recorded tmux session (or the default `hc-<task_id>`) is alive, so it runs `tmux attach -t =<name>`. `=` makes tmux match the exact session name.
 2. **resume**: the newest run that recorded a Claude session id runs `claude --resume <id>`, in the directory recorded for it, else the task workspace. Claude Code keys sessions by directory, so record `--cwd` when `claude` didn't run in the workspace.
-3. **fresh**: otherwise it starts `claude` in the task workspace.
+3. **resume-inferred**: no run recorded a session id (typically the worker crashed before its handoff), so it looks in `~/.claude/projects/` for a Claude Code transcript whose recorded cwd is the task workspace or a directory under it and which was written during the latest run (start to end, or now while it runs, with 60s slack). Exactly one such session runs `claude --resume <id>` in the cwd the transcript recorded. If several match it does not guess: it falls back to fresh and the reason lists the candidate ids so you can `claude --resume <id>` by hand.
+4. **fresh**: otherwise it starts `claude` in the task workspace.
 
 On macOS with Warp installed (`/Applications/Warp.app` or `~/Applications/Warp.app`), Hermes writes a Warp [Launch Configuration](https://docs.warp.dev/terminal/sessions/launch-configurations) to `~/.warp/launch_configurations/hermes-<task_id>.yaml` (overwritten on every open) and opens it with `warp://launch/<path>`. That way the command really runs, because the `warp://action/new_tab` URIs can only change directory. `--print` shows the resolved mode, cwd and command without launching. On other hosts, or when Warp is missing, the CLI and the dashboard show the command to run yourself. The dashboard button runs on the machine serving the dashboard, so Warp opens there.
 

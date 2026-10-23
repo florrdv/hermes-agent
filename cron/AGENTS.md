@@ -112,7 +112,7 @@ zero outside a kanban task (footprint ladder rung 3).
   unlink, comment, attach, attachments, attach-rm, complete, request-review, request-changes,
   reopen-review, block, unblock, archive, tail`, plus `watch, stats, runs, log, assignees, heartbeat,
   notify-*, dispatch, daemon, gc, claude-session record, open-session` (`kanban_claude_session.py`;
-  Warp launch in `kanban_warp.py`). Argparse alias dispatch must accept both `list` and `ls` (root).
+  crash-fallback transcript lookup in `kanban_claude_transcripts.py`; Warp launch in `kanban_warp.py`). Argparse alias dispatch must accept both `list` and `ls` (root).
 - **Toolset:** `tools/kanban_tools.py` — `kanban_show, kanban_complete, kanban_request_review,
   kanban_request_changes, kanban_block, kanban_schedule, kanban_heartbeat, kanban_comment,
   kanban_create, kanban_link,

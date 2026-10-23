@@ -5,7 +5,9 @@ session id, the tmux session and the directory ``claude`` ran in onto its run's 
 (``hermes kanban claude-session record``, or the same keys in ``kanban_complete`` /
 ``kanban_request_review`` metadata). :func:`resolve_open_session` turns a task's runs into one
 command: attach the live tmux session, else ``claude --resume`` the newest recorded session in
-the directory it ran in, else a fresh ``claude`` in the task workspace.
+the directory it ran in, else resume the one Claude Code transcript written for the task
+workspace during the latest run (``kanban_claude_transcripts``; a worker that crashed before
+its handoff never recorded its id), else a fresh ``claude`` in the task workspace.
 ``hermes kanban open-session`` and the dashboard's "Open session" button launch it in Warp
 (``kanban_warp``).
 """
@@ -17,12 +19,14 @@ import os
 import shlex
 import sqlite3
 import subprocess
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
 from hermes_cli import kanban_db as kb
 from hermes_cli import kanban_db_connect as kbc
+from hermes_cli import kanban_claude_transcripts as kct
 from hermes_cli.kanban_db_runs import update_run_metadata
 from hermes_cli.kanban_output import _err, _json_out
 
@@ -32,7 +36,11 @@ CWD_KEY = "claude_cwd"
 
 MODE_ATTACH = "attach"
 MODE_RESUME = "resume"
+MODE_RESUME_INFERRED = "resume-inferred"
 MODE_FRESH = "fresh"
+
+# Transcript mtimes are compared against run timestamps stored in whole seconds.
+TRANSCRIPT_WINDOW_SLACK_SECONDS = 60
 
 
 def default_tmux_session(task_id: str) -> str:
@@ -119,11 +127,39 @@ def _existing_dir(path: object, is_dir: Callable[[str], bool]) -> Optional[str]:
     return path if isinstance(path, str) and os.path.isabs(path) and is_dir(path) else None
 
 
+def _infer_from_transcripts(
+    task: kb.Task, runs: list[kb.Run], workspace: Optional[str], projects_dir: Optional[Path],
+    is_dir: Callable[[str], bool],
+) -> tuple[Optional[OpenSessionPlan], str]:
+    """Resume the single transcript the latest run wrote for the workspace. Returns
+    ``(plan, "")`` on one match, else ``(None, note for the fresh plan's reason)``."""
+    if projects_dir is None or workspace is None or not runs:
+        return None, ""
+    run = max(runs, key=lambda r: (r.started_at, r.id))
+    until = run.ended_at if run.ended_at is not None else time.time()
+    found = kct.find_transcripts(projects_dir, workspace, since=run.started_at - TRANSCRIPT_WINDOW_SLACK_SECONDS,
+                                 until=until + TRANSCRIPT_WINDOW_SLACK_SECONDS)
+    if len(found) > 1:
+        ids = ", ".join(t.session_id for t in found)
+        return None, (f"; {len(found)} Claude transcripts written during run {run.id} match the workspace"
+                      f" ({ids}), not guessing: run `claude --resume <id>` by hand")
+    if not found:
+        return None, ""
+    transcript = found[0]
+    cwd = _existing_dir(transcript.cwd, is_dir) or workspace
+    return OpenSessionPlan(
+        task.id, MODE_RESUME_INFERRED, ("claude", "--resume", transcript.session_id), cwd,
+        f"no live tmux session and no recorded Claude session; resuming the session inferred from transcript "
+        f"{transcript.path} (written during run {run.id}, not recorded by the worker) in {cwd}"), ""
+
+
 def resolve_open_session(
     task: kb.Task, runs: Iterable[kb.Run], *, tmux_alive: Callable[[str], bool],
-    is_dir: Callable[[str], bool] = os.path.isdir,
+    is_dir: Callable[[str], bool] = os.path.isdir, claude_projects_dir: Optional[Path] = None,
 ) -> OpenSessionPlan:
-    """attach (live tmux) > resume (newest recorded Claude session) > fresh ``claude``.
+    """attach (live tmux) > resume (newest recorded Claude session) > resume-inferred (the
+    one transcript under ``claude_projects_dir`` the latest run wrote for the workspace;
+    ``None`` skips inference) > fresh ``claude``.
 
     tmux candidates are the newest recorded ``tmux_session`` then the ``hc-<task_id>``
     default. ``=name`` makes tmux match the session name exactly (``hc-t_1`` must not
@@ -148,8 +184,11 @@ def resolve_open_session(
             cwd, where = workspace, "task workspace (no cwd recorded)"
         return OpenSessionPlan(task.id, MODE_RESUME, ("claude", "--resume", session_id), cwd,
                                f"no live tmux session; resuming Claude session from run {run.id} in {where}")
+    inferred, note = _infer_from_transcripts(task, runs, workspace, claude_projects_dir, is_dir)
+    if inferred:
+        return inferred
     return OpenSessionPlan(task.id, MODE_FRESH, ("claude",), workspace,
-                           "no live tmux session and no recorded Claude session"
+                           "no live tmux session and no recorded Claude session" + note
                            + ("" if workspace else "; task workspace does not exist, starting in home"))
 
 
@@ -172,7 +211,8 @@ def plan_for_task(conn: sqlite3.Connection, task_id: str) -> OpenSessionPlan:
     task = kb.get_task(conn, task_id)
     if task is None:
         raise LookupError(f"unknown task {task_id}")
-    return resolve_open_session(task, kb.list_runs(conn, task_id), tmux_alive=tmux_session_alive)
+    return resolve_open_session(task, kb.list_runs(conn, task_id), tmux_alive=tmux_session_alive,
+                                claude_projects_dir=kct.default_projects_dir())
 
 
 def open_session(conn: sqlite3.Connection, task_id: str, *, launch: bool = True) -> dict:

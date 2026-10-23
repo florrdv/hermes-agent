@@ -857,7 +857,7 @@ export const en: Translations = {
     openSession: "\u25B6 Open session",
     openSessionBusy: "Opening…",
     openSessionTitle:
-      "Open this task's Claude Code session in Warp: attach its tmux session, else resume the recorded Claude session, else start claude in the workspace",
+      "Open this task's Claude Code session in Warp: attach its tmux session, else resume the recorded Claude session, else resume the one Claude transcript written for the workspace during the run, else start claude in the workspace",
     openSessionLaunched: "Opened in Warp ({mode}): {command}",
     openSessionManual: "{error} — run it yourself: {command}",
     openSessionFailed: "Open session failed: ",

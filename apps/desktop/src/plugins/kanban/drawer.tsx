@@ -58,6 +58,7 @@ import {
   useKanbanScope
 } from './api'
 import { latestRunChatSession } from './chat-session'
+import { LiveFeed } from './drawer-live'
 import { ModelOverrideField, overridePatch } from './model-override'
 import {
   type Diagnostic,
@@ -684,7 +685,9 @@ function LinkChips({
   )
 }
 
-/** The main column's feed: Comments (default) / Activity / Runs / Worker log,
+type FeedTab = 'activity' | 'comments' | 'live' | 'log' | 'runs'
+
+/** The main column's feed: Comments (default) / Live / Activity / Runs / Worker log,
  *  selected Jira-style with a segmented control ("Activity ▸ Show: …"). The
  *  control hides itself when only comments exist — nothing to switch to. */
 function FeedTabs({
@@ -703,21 +706,26 @@ function FeedTabs({
   running: boolean
 }) {
   const k = useKanban()
-  const [tab, setTab] = useState<'activity' | 'comments' | 'log' | 'runs'>('comments')
+  const [tab, setTab] = useState<FeedTab>('comments')
 
   const hasLog = !!log?.exists && !!log.content
   const switchable = detail.events.length > 0 || detail.runs.length > 0 || hasLog
 
+  const shown: Record<FeedTab, boolean> = {
+    comments: true,
+    live: detail.runs.length > 0,
+    activity: detail.events.length > 0,
+    runs: detail.runs.length > 0,
+    log: hasLog
+  }
+
   const tabs = [
     { id: 'comments' as const, label: k.comments(detail.comments.length) },
+    { id: 'live' as const, label: k.live },
     { id: 'activity' as const, label: k.activity(detail.events.length) },
     { id: 'runs' as const, label: k.runs(detail.runs.length) },
     { id: 'log' as const, label: k.workerLog }
-  ].filter(
-    t =>
-      t.id === 'comments' ||
-      (t.id === 'activity' ? detail.events.length > 0 : t.id === 'runs' ? detail.runs.length > 0 : hasLog)
-  )
+  ].filter(t => shown[t.id])
 
   const help = (
     <Tip label={running ? k.commentsHelpRunning : k.commentsHelp}>
@@ -747,6 +755,7 @@ function FeedTabs({
           <CommentComposer onRequeue={onRequeue} onSubmit={onComment} pending={commentPending} running={running} />
         </>
       )}
+      {tab === 'live' && <LiveFeed key={detail.task.id} running={running} taskId={detail.task.id} />}
       {tab === 'activity' && (
         <ScrollFade deps={detail.events.length} max="7rem">
           <ul className="flex flex-col gap-1">

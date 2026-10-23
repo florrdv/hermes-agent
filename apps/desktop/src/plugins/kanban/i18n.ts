@@ -168,6 +168,11 @@ type KanbanMessages = {
   openClaude: string
   openClaudeTip: string
   openClaudeNoRun: string
+  live: string
+  liveNow: string
+  liveEmpty: string
+  liveError: string
+  liveSources: { card: string; claude: string; hermes: string; stage: string }
   claudeAttached: string
   claudeResumed: string
   claudeOpenedFresh: string
@@ -414,6 +419,11 @@ export const en: KanbanMessages = {
   openClaude: 'Open Claude Code',
   openClaudeTip: "Open this card's Claude Code session in Warp",
   openClaudeNoRun: 'No Claude Code session yet — available once a worker has run this task',
+  live: 'Live',
+  liveNow: 'Now:',
+  liveEmpty: 'Nothing yet — the worker, the card and Claude Code show up here as they happen',
+  liveError: 'Could not load the live feed',
+  liveSources: { card: 'card', claude: 'claude', hermes: 'hermes', stage: 'stage' },
   claudeAttached: 'Attached to the Claude Code session in Warp',
   claudeResumed: 'Resumed the Claude Code session in Warp',
   claudeOpenedFresh: 'Opened a new Claude Code session in Warp',
@@ -652,6 +662,11 @@ const ja: KanbanMessages = {
   openClaude: 'Claude Code を開く',
   openClaudeTip: 'このカードの Claude Code セッションを Warp で開きます',
   openClaudeNoRun: 'まだ Claude Code セッションはありません — ワーカーがこのタスクを実行すると利用できます',
+  live: 'ライブ',
+  liveNow: '現在:',
+  liveEmpty: 'まだ何もありません — ワーカー、カード、Claude Code の動きがここに表示されます',
+  liveError: 'ライブフィードを読み込めませんでした',
+  liveSources: { card: 'カード', claude: 'claude', hermes: 'hermes', stage: '段階' },
   claudeAttached: 'Warp で Claude Code セッションに接続しました',
   claudeResumed: 'Warp で Claude Code セッションを再開しました',
   claudeOpenedFresh: 'Warp で新しい Claude Code セッションを開きました',
@@ -888,6 +903,11 @@ const zh: KanbanMessages = {
   openClaude: '打开 Claude Code',
   openClaudeTip: '在 Warp 中打开此卡片的 Claude Code 会话',
   openClaudeNoRun: '暂无 Claude Code 会话 — worker 运行此任务后可用',
+  live: '实时',
+  liveNow: '当前:',
+  liveEmpty: '暂无内容 — 工作单元、卡片和 Claude Code 的动态会显示在这里',
+  liveError: '无法加载实时动态',
+  liveSources: { card: '卡片', claude: 'claude', hermes: 'hermes', stage: '阶段' },
   claudeAttached: '已在 Warp 中连接到 Claude Code 会话',
   claudeResumed: '已在 Warp 中恢复 Claude Code 会话',
   claudeOpenedFresh: '已在 Warp 中打开新的 Claude Code 会话',
@@ -1123,6 +1143,11 @@ const zhHant: KanbanMessages = {
   openClaude: '開啟 Claude Code',
   openClaudeTip: '在 Warp 中開啟此卡片的 Claude Code 工作階段',
   openClaudeNoRun: '尚無 Claude Code 工作階段 — worker 執行此任務後可用',
+  live: '即時',
+  liveNow: '目前:',
+  liveEmpty: '尚無內容 — 工作單元、卡片和 Claude Code 的動態會顯示在這裡',
+  liveError: '無法載入即時動態',
+  liveSources: { card: '卡片', claude: 'claude', hermes: 'hermes', stage: '階段' },
   claudeAttached: '已在 Warp 中連接到 Claude Code 工作階段',
   claudeResumed: '已在 Warp 中繼續 Claude Code 工作階段',
   claudeOpenedFresh: '已在 Warp 中開啟新的 Claude Code 工作階段',

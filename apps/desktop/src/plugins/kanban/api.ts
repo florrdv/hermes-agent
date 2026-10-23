@@ -42,6 +42,7 @@ import type {
   OpenClaudeSessionResult,
   OrchestrationSettings,
   TaskEstimate,
+  TaskTimeline,
   WorkerLog
 } from './types'
 
@@ -395,6 +396,11 @@ export const fetchTask = async (id: string) => {
 
   return { ...detail, downloadAttachment }
 }
+
+/** The card's merged Live feed; pass the previous page's `cursor` as `since`
+ *  to get only what arrived after it. */
+export const getTaskTimeline = (id: string, since?: string) =>
+  call<TaskTimeline>(withBoard(`/tasks/${id}/timeline`, since ? { since } : {}))
 
 /** Worker stdout/stderr tail (last 16 KiB — plenty for the drawer). */
 export const fetchLog = (id: string) => call<WorkerLog>(withBoard(`/tasks/${id}/log`, { tail: '16384' }))

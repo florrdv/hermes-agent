@@ -1026,6 +1026,19 @@ def open_session_endpoint(task_id: str, board: Optional[str] = Query(None)):
         return kanban_claude_session.open_session(conn, task_id)
 
 
+@router.get("/tasks/{task_id}/timeline")
+def task_timeline_endpoint(task_id: str, since: Optional[str] = Query(None),
+                           limit: int = Query(300, ge=1, le=2000), board: Optional[str] = Query(None)):
+    """The card's merged Live feed (card events/comments, stage notes, the Hermes worker's
+    session, Claude Code transcripts), read-only. ``since`` is the previous response's
+    ``cursor``: only entries past it come back."""
+    from hermes_cli import kanban_timeline
+
+    board = _resolve_board(board)
+    with _map_errors(404, LookupError), _value_error_400():
+        return kanban_timeline.task_timeline(task_id, board=board, since=since, limit=limit)
+
+
 class SpecifyBody(BaseModel):
     """Only the author is configurable; model + prompt come from
     ``auxiliary.triage_specifier`` in config.yaml, same as the CLI."""

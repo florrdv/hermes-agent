@@ -225,6 +225,33 @@ export interface BoardsResponse {
   current: string
 }
 
+/** Who an entry of the Live feed comes from: the Hermes worker's own session,
+ *  the card (events + comments), a heartbeat stage note, or Claude Code. */
+export type TimelineSource = 'card' | 'claude' | 'hermes' | 'stage'
+
+export interface TimelineEntry {
+  /** Stable across polls; the merge dedupes on it. */
+  id: string
+  /** Epoch seconds. */
+  ts: number
+  source: TimelineSource
+  /** said | tool | prompt | note | comment | an event kind (completed, blocked, …). */
+  kind: string
+  text: string
+  /** Full text when `text` was clipped server-side. */
+  detail?: string
+}
+
+/** GET /tasks/:id/timeline — `cursor` goes back as `since` to get only newer entries. */
+export interface TaskTimeline {
+  task_id: string
+  status: string
+  cursor: string
+  now: null | { text: string; ts: number }
+  truncated: boolean
+  entries: TimelineEntry[]
+}
+
 /** GET /tasks/:id/log — the worker's stdout/stderr tail. */
 export interface WorkerLog {
   exists: boolean

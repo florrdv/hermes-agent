@@ -165,6 +165,14 @@ type KanbanMessages = {
   goToChat: string
   goToChatTip: string
   goToChatNoSession: string
+  openClaude: string
+  openClaudeTip: string
+  openClaudeNoRun: string
+  claudeAttached: string
+  claudeResumed: string
+  claudeOpenedFresh: string
+  claudeWarpFailed: string
+  claudeRunItYourself: (command: string) => string
   copyTaskId: string
   copyTitle: string
   copiedId: (id: string) => string
@@ -403,6 +411,14 @@ export const en: KanbanMessages = {
   goToChat: 'Go to chat',
   goToChatTip: "Open the chat session the latest run's worker ran in",
   goToChatNoSession: 'No chat yet — available once a worker has run this task',
+  openClaude: 'Open Claude Code',
+  openClaudeTip: "Open this card's Claude Code session in Warp",
+  openClaudeNoRun: 'No Claude Code session yet — available once a worker has run this task',
+  claudeAttached: 'Attached to the Claude Code session in Warp',
+  claudeResumed: 'Resumed the Claude Code session in Warp',
+  claudeOpenedFresh: 'Opened a new Claude Code session in Warp',
+  claudeWarpFailed: 'Could not open Warp',
+  claudeRunItYourself: command => `Run it yourself: ${command}`,
   copyTaskId: 'Copy task id',
   copyTitle: 'Copy title',
   copiedId: id => `Copied ${id}`,
@@ -633,6 +649,14 @@ const ja: KanbanMessages = {
   goToChat: 'チャットを開く',
   goToChatTip: '最新の実行でワーカーが使ったチャットセッションを開きます',
   goToChatNoSession: 'まだチャットはありません — ワーカーがこのタスクを実行すると利用できます',
+  openClaude: 'Claude Code を開く',
+  openClaudeTip: 'このカードの Claude Code セッションを Warp で開きます',
+  openClaudeNoRun: 'まだ Claude Code セッションはありません — ワーカーがこのタスクを実行すると利用できます',
+  claudeAttached: 'Warp で Claude Code セッションに接続しました',
+  claudeResumed: 'Warp で Claude Code セッションを再開しました',
+  claudeOpenedFresh: 'Warp で新しい Claude Code セッションを開きました',
+  claudeWarpFailed: 'Warp を開けませんでした',
+  claudeRunItYourself: command => `手動で実行してください: ${command}`,
   copyTaskId: 'タスク ID をコピー',
   copyTitle: 'タイトルをコピー',
   copiedId: id => `${id} をコピーしました`,
@@ -861,6 +885,14 @@ const zh: KanbanMessages = {
   goToChat: '前往聊天',
   goToChatTip: '打开最近一次运行中 worker 所在的聊天会话',
   goToChatNoSession: '暂无聊天 — worker 运行此任务后可用',
+  openClaude: '打开 Claude Code',
+  openClaudeTip: '在 Warp 中打开此卡片的 Claude Code 会话',
+  openClaudeNoRun: '暂无 Claude Code 会话 — worker 运行此任务后可用',
+  claudeAttached: '已在 Warp 中连接到 Claude Code 会话',
+  claudeResumed: '已在 Warp 中恢复 Claude Code 会话',
+  claudeOpenedFresh: '已在 Warp 中打开新的 Claude Code 会话',
+  claudeWarpFailed: '无法打开 Warp',
+  claudeRunItYourself: command => `请手动运行：${command}`,
   copyTaskId: '复制任务 ID',
   copyTitle: '复制标题',
   copiedId: id => `已复制 ${id}`,
@@ -1088,6 +1120,14 @@ const zhHant: KanbanMessages = {
   goToChat: '前往聊天',
   goToChatTip: '開啟最近一次執行中 worker 所在的聊天工作階段',
   goToChatNoSession: '尚無聊天 — worker 執行此任務後可用',
+  openClaude: '開啟 Claude Code',
+  openClaudeTip: '在 Warp 中開啟此卡片的 Claude Code 工作階段',
+  openClaudeNoRun: '尚無 Claude Code 工作階段 — worker 執行此任務後可用',
+  claudeAttached: '已在 Warp 中連接到 Claude Code 工作階段',
+  claudeResumed: '已在 Warp 中繼續 Claude Code 工作階段',
+  claudeOpenedFresh: '已在 Warp 中開啟新的 Claude Code 工作階段',
+  claudeWarpFailed: '無法開啟 Warp',
+  claudeRunItYourself: command => `請手動執行：${command}`,
   copyTaskId: '複製任務 ID',
   copyTitle: '複製標題',
   copiedId: id => `已複製 ${id}`,

@@ -47,6 +47,7 @@ import {
   fetchProfiles,
   fetchTask,
   logKey,
+  openClaudeSession,
   patchTask,
   profilesKey,
   reassignTask,
@@ -64,6 +65,7 @@ import {
   type KanbanAttachment,
   type KanbanEvent,
   type KanbanTaskDetail,
+  type OpenClaudeSessionResult,
   SEVERITY_TONE,
   type TaskEstimate,
   type WorkerLog
@@ -862,6 +864,66 @@ function GoToChatButton({ detail, onOpened }: { detail?: KanbanTaskDetail; onOpe
   )
 }
 
+const CLAUDE_OPENED: Record<OpenClaudeSessionResult['mode'], (k: KanbanText) => string> = {
+  attach: k => k.claudeAttached,
+  fresh: k => k.claudeOpenedFresh,
+  resume: k => k.claudeResumed,
+  'resume-inferred': k => k.claudeResumed
+}
+
+/** The open-session result as a toast. A launch that is not a plain
+ *  attach/resume carries the backend's reason (inferred transcript, or the
+ *  ambiguous candidate ids a fresh session declined to guess between); Warp
+ *  being unavailable hands the user the command to run themselves. */
+function notifyClaudeOpened(k: KanbanText, result: OpenClaudeSessionResult) {
+  if (!result.launched) {
+    host.notify({
+      kind: 'error',
+      title: k.claudeWarpFailed,
+      message: result.error || k.claudeWarpFailed,
+      detail: k.claudeRunItYourself(result.shell_line)
+    })
+
+    return
+  }
+
+  const explained = result.mode === 'fresh' || result.mode === 'resume-inferred'
+
+  host.notify({
+    kind: 'success',
+    message: CLAUDE_OPENED[result.mode]?.(k) ?? k.claudeOpenedFresh,
+    ...(explained && result.reason ? { detail: result.reason } : {})
+  })
+}
+
+/** Open the card's Claude Code session in Warp on the backend host
+ *  (`POST /tasks/{id}/open-session`): attach the live tmux session, else
+ *  resume the recorded one, else a fresh `claude` in the workspace. Gated on
+ *  the card having run at all — before a worker claims it there is nothing to
+ *  reopen. */
+function OpenClaudeButton({ detail }: { detail?: KanbanTaskDetail }) {
+  const k = useKanban()
+  const hasRun = !!detail && detail.runs.length > 0
+
+  const open = useMutation({
+    mutationFn: () => openClaudeSession(detail!.task.id),
+    onError: err => host.notifyError(err, k.openClaude),
+    onSuccess: result => notifyClaudeOpened(k, result)
+  })
+
+  return (
+    <Tip label={hasRun ? k.openClaudeTip : k.openClaudeNoRun}>
+      {/* A disabled button swallows pointer events, so the tip hangs off a wrapper. */}
+      <span className="inline-flex">
+        <Button disabled={!hasRun || open.isPending} onClick={() => open.mutate()} size="xs" variant="outline">
+          <Codicon name="terminal" size="0.75rem" />
+          {k.openClaude}
+        </Button>
+      </span>
+    </Tip>
+  )
+}
+
 export function TaskDrawer({
   columns,
   id,
@@ -1021,6 +1083,7 @@ export function TaskDrawer({
               {task && (
                 <>
                   <GoToChatButton detail={detail} onOpened={onClose} />
+                  <OpenClaudeButton detail={detail} />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button aria-label={k.taskActions} size="icon-xs" variant="ghost">

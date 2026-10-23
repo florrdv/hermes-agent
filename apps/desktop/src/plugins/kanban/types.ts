@@ -149,6 +149,22 @@ export interface KanbanTaskDetail {
   runs: KanbanRun[]
 }
 
+/** POST /tasks/{id}/open-session — `open_session()` in
+ *  hermes_cli/kanban_claude_session.py. `reason` names any ambiguous transcript
+ *  ids a `fresh` plan declined to guess between. */
+export interface OpenClaudeSessionResult {
+  task_id: string
+  mode: 'attach' | 'fresh' | 'resume' | 'resume-inferred'
+  argv: string[]
+  cwd: null | string
+  reason: string
+  command: string
+  shell_line: string
+  launched: boolean
+  error: null | string
+  launch_config: null | string
+}
+
 /** GET /boards — every board on disk + which one is the server's current. */
 export interface BoardMeta {
   slug: string

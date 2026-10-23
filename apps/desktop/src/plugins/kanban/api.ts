@@ -39,6 +39,7 @@ import type {
   KanbanProject,
   KanbanTask,
   KanbanTaskDetail,
+  OpenClaudeSessionResult,
   OrchestrationSettings,
   TaskEstimate,
   WorkerLog
@@ -463,6 +464,11 @@ export const reassignTask = (id: string, profile: string) =>
   nudged(call(withBoard(`/tasks/${id}/reassign`), { method: 'POST', body: { profile, reclaim_first: true } }))
 
 export const reclaimTask = (id: string) => nudged(call(withBoard(`/tasks/${id}/reclaim`), { method: 'POST', body: {} }))
+
+/** Open the card's Claude Code session in Warp on the backend host. Warp being
+ *  unavailable is a 200 with `launched: false` + `error`, not a rejection. */
+export const openClaudeSession = (id: string) =>
+  call<OpenClaudeSessionResult>(withBoard(`/tasks/${id}/open-session`), { method: 'POST', body: {} })
 
 export const uploadAttachment = (id: string, upload: { filename: string; contentType?: string; bytes: ArrayBuffer }) =>
   call(withBoard(`/tasks/${id}/attachments`), { method: 'POST', upload })

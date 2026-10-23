@@ -417,6 +417,26 @@ _SPECS = [
          help="Print the worker log for a task (from <kanban-root>/kanban/logs/)"),
     _cmd("runs", [_TASK_ID, _json_flag(), *_run_state_args("filter runs by task_runs column")],
          help="Show attempt history for a task (one row per run: profile, outcome, elapsed, summary)"),
+    _cmd("claude-session", children=("claude_session_action", [
+        _cmd("record", [
+            _arg("--task", help="Task id (default: $HERMES_KANBAN_TASK)"),
+            _arg("--run", type=int, help="Run id (default: $HERMES_KANBAN_RUN_ID for the worker's own "
+                                         "task, else the task's active run, else its newest run)"),
+            _arg("--session-id", help="Claude Code session id (resume with `claude --resume <id>`)"),
+            _arg("--tmux", help="tmux session claude runs in (default convention: hc-<task_id>)"),
+            _arg("--cwd", help="Directory claude ran in (Claude sessions resume per directory)"),
+            _json_flag(),
+        ], help="Merge Claude session fields into a run's metadata (usable while the worker runs)"),
+    ]), help="Record the Claude Code session a worker runs a task in",
+         description="Workers that delegate to the Claude Code CLI record where it runs so "
+                     "`hermes kanban open-session` and the dashboard can reopen it."),
+    _cmd("open-session", [
+        _TASK_ID,
+        _arg("--print", dest="print_only", action="store_true",
+             help="Only print the resolved mode, cwd and command; don't launch Warp"),
+        _json_flag(),
+    ], help="Open a task's Claude Code session in Warp: attach its live tmux session, "
+            "else resume the recorded Claude session, else start claude in the workspace"),
     _cmd("heartbeat", [
         _TASK_ID,
         _arg("--note", help="Optional short note attached to the heartbeat event"),

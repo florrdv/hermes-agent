@@ -854,6 +854,13 @@ export const en: Translations = {
     reclaimFailed: "Reclaim failed: ",
     reassignedMessage: "Reassigned {id} to {profile}.",
     reassignFailed: "Reassign failed: ",
+    openSession: "\u25B6 Open session",
+    openSessionBusy: "Opening…",
+    openSessionTitle:
+      "Open this task's Claude Code session in Warp: attach its tmux session, else resume the recorded Claude session, else start claude in the workspace",
+    openSessionLaunched: "Opened in Warp ({mode}): {command}",
+    openSessionManual: "{error} — run it yourself: {command}",
+    openSessionFailed: "Open session failed: ",
     selectForBulk: "Select for bulk actions",
     clickToEdit: "Click to edit",
     clickToEditAssignee: "Click to edit assignee",

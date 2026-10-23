@@ -890,6 +890,7 @@ All routes are mounted under `/api/plugins/kanban/` and protected by the dashboa
 | `POST` | `/links` | Add a dependency (`parent_id` → `child_id`) |
 | `DELETE` | `/links?parent_id=…&child_id=…` | Remove a dependency |
 | `POST` | `/dispatch?max=…&dry_run=…` | Nudge the dispatcher — skip the 60 s wait |
+| `POST` | `/tasks/:id/open-session` | Open the card's Claude Code session in Warp on the dashboard host (see [Opening a card's Claude Code session](#opening-a-cards-claude-code-session)). Returns `{mode, argv, command, cwd, reason, shell_line, launched, error, launch_config}`; Warp being unavailable is a 200 with `launched: false` |
 | `GET` | `/config` | Read `dashboard.kanban` preferences from `config.yaml` — `default_tenant`, `lane_by_profile`, `include_archived_by_default`, `render_markdown` |
 | `WS` | `/events?since=<event_id>` | Live stream of `task_events` rows. Without `since` the stream starts at the board's current tail (the `/board` snapshot already holds the past); pass `since=<latest_event_id>` to catch up from there, or `since=0` to replay history |
 
@@ -982,6 +983,9 @@ hermes kanban watch [--assignee P] [--tenant T]        # live stream ALL events 
         [--kinds completed,blocked,…] [--interval SECS]
 hermes kanban heartbeat <id> [--note "..."]            # worker liveness signal for long ops
 hermes kanban runs <id> [--json]                       # attempt history (one row per run)
+hermes kanban claude-session record [--task T] [--run R] [--session-id ID] [--tmux NAME] [--cwd DIR] [--json]
+                                                       # worker: record its Claude Code session on the run
+hermes kanban open-session <id> [--print] [--json]     # open the card's Claude Code session in Warp
 hermes kanban assignees [--json]                       # profiles on disk + per-assignee task counts
 hermes kanban dispatch [--dry-run] [--max N]           # one-shot pass
         [--failure-limit N] [--json]
@@ -1056,6 +1060,30 @@ The dashboard plugin API now exposes these read-only endpoints (plus a run-contr
 | `GET /api/plugins/kanban/inspect` | Combined dispatcher snapshot — backlog, in-progress count vs. `max_in_progress`, recent events |
 
 All of these are gated by the same dashboard plugin auth as the rest of the kanban plugin API.
+
+### Opening a card's Claude Code session {#opening-a-cards-claude-code-session}
+
+Profiles that work cards by delegating to the Claude Code CLI (for example a `claude-coder` profile running `claude -p … --output-format json`, or `claude` inside a tmux session named `hc-<task_id>`) can record where that session lives, so you can jump into it from the card.
+
+**Recording.** While it runs, the worker records the session on its run's metadata. The fields merge into whatever the run already carries, and a later `kanban_complete` / `kanban_request_review` handoff merges over them instead of erasing them:
+
+```bash
+# Inside a worker: task and run default from HERMES_KANBAN_TASK / HERMES_KANBAN_RUN_ID
+hermes kanban claude-session record --session-id "$CLAUDE_SESSION_ID" --tmux "hc-$HERMES_KANBAN_TASK" --cwd "$PWD"
+
+# From anywhere else, name the task (and optionally the run)
+hermes kanban claude-session record --task t_abc123 --session-id 0f9c… --cwd ~/src/app
+```
+
+A worker can also put the same keys straight into its handoff metadata: `claude_session_id`, `tmux_session`, `claude_cwd`.
+
+**Opening.** `hermes kanban open-session <id>` and the **▶ Open session** button in the dashboard's task drawer pick the first of these that applies:
+
+1. **attach**: the recorded tmux session (or the default `hc-<task_id>`) is alive, so it runs `tmux attach -t =<name>`. `=` makes tmux match the exact session name.
+2. **resume**: the newest run that recorded a Claude session id runs `claude --resume <id>`, in the directory recorded for it, else the task workspace. Claude Code keys sessions by directory, so record `--cwd` when `claude` didn't run in the workspace.
+3. **fresh**: otherwise it starts `claude` in the task workspace.
+
+On macOS with Warp installed (`/Applications/Warp.app` or `~/Applications/Warp.app`), Hermes writes a Warp [Launch Configuration](https://docs.warp.dev/terminal/sessions/launch-configurations) to `~/.warp/launch_configurations/hermes-<task_id>.yaml` (overwritten on every open) and opens it with `warp://launch/<path>`. That way the command really runs, because the `warp://action/new_tab` URIs can only change directory. `--print` shows the resolved mode, cwd and command without launching. On other hosts, or when Warp is missing, the CLI and the dashboard show the command to run yourself. The dashboard button runs on the machine serving the dashboard, so Warp opens there.
 
 ### Kanban Swarm topology helper
 

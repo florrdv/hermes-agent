@@ -4046,6 +4046,7 @@
         onSpecify: props.onSpecify,
         onDecompose: props.onDecompose,
       }),
+      h(OpenSessionAction, { task: t, boardSlug: props.boardSlug }),
       h(DiagnosticsSection, {
         task: t,
         boardSlug: props.boardSlug,
@@ -4861,6 +4862,50 @@
           ? "hermes-kanban-msg-ok"
           : "hermes-kanban-msg-err",
       }, decomposeMsg.text) : null,
+    );
+  }
+
+
+  // "Open session" — POST /tasks/:id/open-session. The backend resolves the
+  // task's Claude Code session (attach the live tmux session > resume the
+  // recorded Claude session > fresh `claude` in the workspace) and opens it
+  // in Warp on the dashboard host. When Warp can't be launched the response
+  // still carries the command, which we show so it can be run by hand.
+  function OpenSessionAction(props) {
+    const { t } = useI18n();
+    const task = props.task;
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState(null);
+    const run = function () {
+      if (busy) return;
+      setBusy(true); setMsg(null);
+      const url = withBoard(`${API}/tasks/${encodeURIComponent(task.id)}/open-session`, props.boardSlug);
+      SDK.fetchJSON(url, { method: "POST" }).then(function (res) {
+        if (res.launched) {
+          setMsg({ ok: true, text: tx(t, "openSessionLaunched", "Opened in Warp ({mode}): {command}",
+            { mode: res.mode, command: res.command }) });
+        } else {
+          setMsg({ ok: false, text: tx(t, "openSessionManual", "{error} — run it yourself: {command}",
+            { error: res.error || "Warp unavailable", command: res.shell_line }) });
+        }
+      }).catch(function (err) {
+        setMsg({ ok: false, text: tx(t, "openSessionFailed", "Open session failed: ") + parseApiErrorMessage(err) });
+      }).then(function () { setBusy(false); });
+    };
+    return h("div", null,
+      h("div", { className: "hermes-kanban-actions" },
+        h(Button, {
+          onClick: run,
+          disabled: busy,
+          size: "sm",
+          variant: "outline",
+          title: tx(t, "openSessionTitle",
+            "Open this task's Claude Code session in Warp: attach its tmux session, else resume the recorded Claude session, else start claude in the workspace"),
+        }, busy ? tx(t, "openSessionBusy", "Opening…") : tx(t, "openSession", "\u25B6 Open session")),
+      ),
+      msg ? h("div", {
+        className: msg.ok ? "hermes-kanban-msg-ok" : "hermes-kanban-msg-err",
+      }, msg.text) : null,
     );
   }
 

@@ -1015,6 +1015,17 @@ def reclaim_task_endpoint(task_id: str, payload: ReclaimBody, board: Optional[st
         return {"ok": True, "task_id": task_id}
 
 
+@router.post("/tasks/{task_id}/open-session")
+def open_session_endpoint(task_id: str, board: Optional[str] = Query(None)):
+    """Open the task's Claude Code session in Warp on the dashboard host
+    (``hermes kanban open-session``). Warp being unavailable is not an HTTP error: the body
+    carries ``launched: false``, ``error`` and the command so the UI can show it."""
+    from hermes_cli import kanban_claude_session
+
+    with _board_conn(board) as (board, conn), _map_errors(404, LookupError):
+        return kanban_claude_session.open_session(conn, task_id)
+
+
 class SpecifyBody(BaseModel):
     """Only the author is configurable; model + prompt come from
     ``auxiliary.triage_specifier`` in config.yaml, same as the CLI."""

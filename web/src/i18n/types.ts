@@ -852,6 +852,12 @@ export interface Translations {
     reclaimFailed: string;
     reassignedMessage: string;
     reassignFailed: string;
+    openSession: string;
+    openSessionBusy: string;
+    openSessionTitle: string;
+    openSessionLaunched: string;
+    openSessionManual: string;
+    openSessionFailed: string;
     selectForBulk: string;
     clickToEdit: string;
     clickToEditAssignee: string;

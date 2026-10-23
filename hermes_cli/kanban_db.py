@@ -1853,40 +1853,6 @@ def _append_event(
     )
 
 
-def _end_run(
-    conn: sqlite3.Connection, task_id: str, *, outcome: str, summary: Optional[str] = None,
-    error: Optional[str] = None, metadata: Optional[dict] = None, status: Optional[str] = None,
-) -> Optional[int]:
-    """Close the active run (``status`` defaults to ``outcome``) and clear
-    ``current_run_id``; None when no run was active (never-claimed task).
-
-    ``worker_pid`` / ``worker_started_at`` / ``claim_lock`` stay on the closed
-    row: they are the only evidence left of the OS process once the task row
-    is wiped, and :func:`kanban_db_dispatch.reap_terminal_workers` needs them
-    to end a worker that survived its own terminal transition."""
-    now = int(time.time())
-    run_id = _current_run_id(conn, task_id)
-    if run_id is None:
-        return None
-    conn.execute(
-        """
-        UPDATE task_runs
-           SET status        = ?,
-               outcome       = ?,
-               summary       = ?,
-               error         = ?,
-               metadata      = ?,
-               ended_at      = ?,
-               claim_expires = NULL
-         WHERE id = ?
-           AND ended_at IS NULL
-        """,
-        (status or outcome, outcome, summary, error, _json_or_null(metadata), now, run_id),
-    )
-    conn.execute("UPDATE tasks SET current_run_id = NULL WHERE id = ?", (task_id,))
-    return run_id
-
-
 def _first_line(text: Optional[str], limit: int) -> str:
     """First non-blank-stripped line of ``text`` capped at ``limit`` chars; "" when empty."""
     lines = (text or "").strip().splitlines()
@@ -4220,6 +4186,7 @@ from hermes_cli.kanban_db_connect import (
     init_db,
     write_txn,
 )
+from hermes_cli.kanban_db_runs import _end_run
 from hermes_cli.kanban_db_workspace import (
     _cleanup_workspace,
     _is_managed_scratch_path,

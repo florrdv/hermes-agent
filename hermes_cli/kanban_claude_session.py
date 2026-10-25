@@ -88,6 +88,13 @@ def record_claude_session(
 
 # --- Resolution ----------------------------------------------------------------
 
+def shell_join(argv: Iterable[str]) -> str:
+    """``shlex.join`` that also quotes a leading ``=``: ``shlex`` treats ``=`` as safe, but zsh
+    runs EQUALS expansion on an unquoted ``=word`` (``tmux attach -t =hc-x`` fails with
+    ``zsh: hc-x not found``)."""
+    return " ".join(f"'{a}'" if a.startswith("=") and shlex.quote(a) == a else shlex.quote(a) for a in argv)
+
+
 @dataclass(frozen=True)
 class OpenSessionPlan:
     """What "open session" will run: ``argv`` in ``cwd`` (``None`` = the user's home)."""
@@ -100,7 +107,7 @@ class OpenSessionPlan:
 
     @property
     def command(self) -> str:
-        return shlex.join(self.argv)
+        return shell_join(self.argv)
 
     @property
     def shell_line(self) -> str:

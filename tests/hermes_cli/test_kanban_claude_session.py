@@ -121,6 +121,8 @@ def test_live_default_tmux_session_wins_over_recorded_claude_session(conn, tmp_p
 
     assert plan.mode == "attach"
     assert plan.argv == ("tmux", "attach", "-t", f"=hc-{tid}")
+    # Unquoted, zsh treats ``=hc-...`` as EQUALS expansion ("zsh: hc-... not found").
+    assert plan.command == f"tmux attach -t '=hc-{tid}'"
 
 
 def test_recorded_tmux_name_is_probed_before_the_default(conn):
@@ -189,6 +191,20 @@ def test_open_session_print_cli_reports_plan_without_launching(conn, tmp_path, m
     assert "command: claude --resume sess-1" in out
     assert f"cwd:     {tmp_path}" in out
     assert launched == []
+
+
+def test_open_session_print_cli_shows_shell_safe_attach_and_resume(conn, tmp_path, monkeypatch, capsys):
+    tid, _ = _claimed(conn, workspace=tmp_path)
+    kcs.record_claude_session(conn, tid, session_id="sess 1;x")
+    alive = {f"hc-{tid}"}
+    monkeypatch.setattr(kcs, "tmux_session_alive", lambda name: name in alive)
+
+    assert _cli("open-session", tid, "--print") == 0
+    assert f"command: tmux attach -t '=hc-{tid}'" in capsys.readouterr().out
+
+    alive.clear()
+    assert _cli("open-session", tid, "--print") == 0
+    assert "command: claude --resume 'sess 1;x'" in capsys.readouterr().out
 
 
 def test_open_session_unknown_task_errors(conn, capsys):

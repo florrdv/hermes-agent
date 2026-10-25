@@ -890,7 +890,7 @@ All routes are mounted under `/api/plugins/kanban/` and protected by the dashboa
 | `POST` | `/links` | Add a dependency (`parent_id` → `child_id`) |
 | `DELETE` | `/links?parent_id=…&child_id=…` | Remove a dependency |
 | `POST` | `/dispatch?max=…&dry_run=…` | Nudge the dispatcher — skip the 60 s wait |
-| `POST` | `/tasks/:id/open-session` | Open the card's Claude Code session in Warp on the dashboard host (see [Opening a card's Claude Code session](#opening-a-cards-claude-code-session)). Returns `{mode, argv, command, cwd, reason, shell_line, launched, error, launch_config}`; Warp being unavailable is a 200 with `launched: false` |
+| `POST` | `/tasks/:id/open-session` | Open the card's Claude Code session in Warp on the dashboard host (see [Opening a card's Claude Code session](#opening-a-cards-claude-code-session)). Returns `{mode, argv, command, cwd, reason, shell_line, launched, error, launch_config}` (`launch_config` is the path of the Warp tab config written); Warp being unavailable is a 200 with `launched: false` |
 | `GET` | `/config` | Read `dashboard.kanban` preferences from `config.yaml` — `default_tenant`, `lane_by_profile`, `include_archived_by_default`, `render_markdown` |
 | `WS` | `/events?since=<event_id>` | Live stream of `task_events` rows. Without `since` the stream starts at the board's current tail (the `/board` snapshot already holds the past); pass `since=<latest_event_id>` to catch up from there, or `since=0` to replay history |
 
@@ -1079,12 +1079,12 @@ A worker can also put the same keys straight into its handoff metadata: `claude_
 
 **Opening.** `hermes kanban open-session <id>` and the **▶ Open session** button in the dashboard's task drawer pick the first of these that applies:
 
-1. **attach**: the recorded tmux session (or the default `hc-<task_id>`) is alive, so it runs `tmux attach -t =<name>`. `=` makes tmux match the exact session name.
+1. **attach**: the recorded tmux session (or the default `hc-<task_id>`) is alive, so it runs `tmux attach -t '=<name>'`. `=` makes tmux match the exact session name; it is quoted so zsh doesn't treat `=word` as EQUALS expansion.
 2. **resume**: the newest run that recorded a Claude session id runs `claude --resume <id>`, in the directory recorded for it, else the task workspace. Claude Code keys sessions by directory, so record `--cwd` when `claude` didn't run in the workspace.
 3. **resume-inferred**: no run recorded a session id (typically the worker crashed before its handoff), so it looks in `~/.claude/projects/` for a Claude Code transcript whose recorded cwd is the task workspace or a directory under it and which was written during the latest run (start to end, or now while it runs, with 60s slack). Exactly one such session runs `claude --resume <id>` in the cwd the transcript recorded. If several match it does not guess: it falls back to fresh and the reason lists the candidate ids so you can `claude --resume <id>` by hand.
 4. **fresh**: otherwise it starts `claude` in the task workspace.
 
-On macOS with Warp installed (`/Applications/Warp.app` or `~/Applications/Warp.app`), Hermes writes a Warp [Launch Configuration](https://docs.warp.dev/terminal/sessions/launch-configurations) to `~/.warp/launch_configurations/hermes-<task_id>.yaml` (overwritten on every open) and opens it with `warp://launch/<path>`. That way the command really runs, because the `warp://action/new_tab` URIs can only change directory. `--print` shows the resolved mode, cwd and command without launching. On other hosts, or when Warp is missing, the CLI and the dashboard show the command to run yourself. The dashboard button runs on the machine serving the dashboard, so Warp opens there.
+On macOS with Warp installed (`/Applications/Warp.app` or `~/Applications/Warp.app`), Hermes writes a Warp Tab Config to `~/.warp/tab_configs/hermes_<task_id>.toml` (characters outside `[A-Za-z0-9_]` in the id become `_`; overwritten on every open) and opens it as a new tab in the active Warp window with `warp://tab_config/hermes_<task_id>`. That way the command really runs. The `warp://action/new_tab` URIs can only change directory, and Warp no longer opens legacy `warp://launch/` Launch Configuration links. `--print` shows the resolved mode, cwd and command without launching. On other hosts, or when Warp is missing, the CLI and the dashboard show the command to run yourself. The dashboard button runs on the machine serving the dashboard, so Warp opens there.
 
 ### Kanban Swarm topology helper
 

@@ -54,7 +54,7 @@ def test_open_session_launches_resolved_plan(client, tmp_path, monkeypatch):
     tid = _task_with_session(tmp_path)
     launched = []
     monkeypatch.setattr(kanban_warp, "launch_in_warp",
-                        lambda plan: launched.append(plan) or tmp_path / "hermes-x.yaml")
+                        lambda plan: launched.append(plan) or tmp_path / "hermes_x.toml")
 
     r = client.post(f"/api/plugins/kanban/tasks/{tid}/open-session")
 
@@ -63,6 +63,18 @@ def test_open_session_launches_resolved_plan(client, tmp_path, monkeypatch):
     assert body["launched"] is True and body["error"] is None
     assert (body["mode"], body["command"], body["cwd"]) == ("resume", "claude --resume sess-7", str(tmp_path))
     assert [p.argv for p in launched] == [("claude", "--resume", "sess-7")]
+    assert body["launch_config"] == str(tmp_path / "hermes_x.toml")
+
+
+def test_open_session_attach_command_is_quoted_for_zsh(client, tmp_path, monkeypatch):
+    tid = _task_with_session(tmp_path)
+    monkeypatch.setattr(kcs, "tmux_session_alive", lambda name: True)
+    monkeypatch.setattr(kanban_warp, "launch_in_warp", lambda plan: tmp_path / "hermes_x.toml")
+
+    body = client.post(f"/api/plugins/kanban/tasks/{tid}/open-session").json()
+
+    assert body["mode"] == "attach"
+    assert body["command"] == f"tmux attach -t '=hc-{tid}'"
 
 
 def test_open_session_without_warp_returns_command_to_run(client, tmp_path, monkeypatch):

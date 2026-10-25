@@ -34,6 +34,7 @@ import type {
   BoardImportResult,
   BoardMeta,
   BoardsResponse,
+  FilePatch,
   KanbanBoard,
   KanbanProfile,
   KanbanProject,
@@ -41,6 +42,7 @@ import type {
   KanbanTaskDetail,
   OpenClaudeSessionResult,
   OrchestrationSettings,
+  TaskChanges,
   TaskEstimate,
   TaskTimeline,
   WorkerLog
@@ -401,6 +403,13 @@ export const fetchTask = async (id: string) => {
  *  to get only what arrived after it. */
 export const getTaskTimeline = (id: string, since?: string) =>
   call<TaskTimeline>(withBoard(`/tasks/${id}/timeline`, since ? { since } : {}))
+
+/** The workspace's changes since the task's base commit (`GET /tasks/:id/changes`). */
+export const getTaskChanges = (id: string) => call<TaskChanges>(withBoard(`/tasks/${id}/changes`))
+
+/** One changed file's unified patch; only paths listed by {@link getTaskChanges} resolve. */
+export const getTaskFilePatch = (id: string, file: string) =>
+  call<FilePatch>(withBoard(`/tasks/${id}/changes`, { file }))
 
 /** Worker stdout/stderr tail (last 16 KiB — plenty for the drawer). */
 export const fetchLog = (id: string) => call<WorkerLog>(withBoard(`/tasks/${id}/log`, { tail: '16384' }))

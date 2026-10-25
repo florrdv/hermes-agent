@@ -173,6 +173,23 @@ type KanbanMessages = {
   liveEmpty: string
   liveError: string
   liveSources: { card: string; claude: string; hermes: string; stage: string }
+  changes: string
+  changesFiles: (n: number) => string
+  changesOpenFull: string
+  changesEmpty: string
+  changesError: string
+  changesCommits: (n: number) => string
+  changesFilesHeading: string
+  changesDirty: string
+  changesLive: string
+  changesShowDiff: string
+  changesCollapsed: string
+  changesBinary: string
+  changesTruncated: string
+  changesSelectFile: string
+  changesUntracked: string
+  changesFilesTruncated: string
+  changesKeysHint: string
   claudeAttached: string
   claudeResumed: string
   claudeOpenedFresh: string
@@ -424,6 +441,23 @@ export const en: KanbanMessages = {
   liveEmpty: 'Nothing yet — the worker, the card and Claude Code show up here as they happen',
   liveError: 'Could not load the live feed',
   liveSources: { card: 'card', claude: 'claude', hermes: 'hermes', stage: 'stage' },
+  changes: 'Changes',
+  changesFiles: n => (n === 1 ? '1 file' : `${n} files`),
+  changesOpenFull: 'Open full view',
+  changesEmpty: 'No changes since the base commit yet',
+  changesError: 'Could not load the changes',
+  changesCommits: n => `Commits since base (${n})`,
+  changesFilesHeading: 'Files',
+  changesDirty: 'uncommitted changes',
+  changesLive: 'Live',
+  changesShowDiff: 'Show diff',
+  changesCollapsed: 'Lockfile or generated file — its diff is hidden by default.',
+  changesBinary: 'Binary file',
+  changesTruncated: 'This diff is too large and was cut at 300 KB.',
+  changesSelectFile: 'Select a file to see its diff',
+  changesUntracked: 'untracked',
+  changesFilesTruncated: 'Only the first 1000 files are listed.',
+  changesKeysHint: '↑/↓ or j/k to move between files · Esc to close',
   claudeAttached: 'Attached to the Claude Code session in Warp',
   claudeResumed: 'Resumed the Claude Code session in Warp',
   claudeOpenedFresh: 'Opened a new Claude Code session in Warp',
@@ -667,6 +701,23 @@ const ja: KanbanMessages = {
   liveEmpty: 'まだ何もありません — ワーカー、カード、Claude Code の動きがここに表示されます',
   liveError: 'ライブフィードを読み込めませんでした',
   liveSources: { card: 'カード', claude: 'claude', hermes: 'hermes', stage: '段階' },
+  changes: '変更',
+  changesFiles: n => `${n} ファイル`,
+  changesOpenFull: '全画面で開く',
+  changesEmpty: 'ベースコミット以降の変更はまだありません',
+  changesError: '変更を読み込めませんでした',
+  changesCommits: n => `ベース以降のコミット (${n})`,
+  changesFilesHeading: 'ファイル',
+  changesDirty: '未コミットの変更',
+  changesLive: 'ライブ',
+  changesShowDiff: '差分を表示',
+  changesCollapsed: 'ロックファイルまたは生成ファイルです — 差分は既定で非表示です。',
+  changesBinary: 'バイナリファイル',
+  changesTruncated: 'この差分は大きすぎるため 300 KB で切り詰められました。',
+  changesSelectFile: 'ファイルを選択すると差分が表示されます',
+  changesUntracked: '未追跡',
+  changesFilesTruncated: '最初の 1000 ファイルのみ表示しています。',
+  changesKeysHint: '↑/↓ または j/k でファイル間を移動 · Esc で閉じる',
   claudeAttached: 'Warp で Claude Code セッションに接続しました',
   claudeResumed: 'Warp で Claude Code セッションを再開しました',
   claudeOpenedFresh: 'Warp で新しい Claude Code セッションを開きました',
@@ -908,6 +959,23 @@ const zh: KanbanMessages = {
   liveEmpty: '暂无内容 — 工作单元、卡片和 Claude Code 的动态会显示在这里',
   liveError: '无法加载实时动态',
   liveSources: { card: '卡片', claude: 'claude', hermes: 'hermes', stage: '阶段' },
+  changes: '变更',
+  changesFiles: n => `${n} 个文件`,
+  changesOpenFull: '打开完整视图',
+  changesEmpty: '自基准提交以来尚无变更',
+  changesError: '无法加载变更',
+  changesCommits: n => `基准以来的提交 (${n})`,
+  changesFilesHeading: '文件',
+  changesDirty: '未提交的变更',
+  changesLive: '实时',
+  changesShowDiff: '显示差异',
+  changesCollapsed: '锁文件或生成文件 — 默认隐藏其差异。',
+  changesBinary: '二进制文件',
+  changesTruncated: '该差异过大，已在 300 KB 处截断。',
+  changesSelectFile: '选择一个文件以查看其差异',
+  changesUntracked: '未跟踪',
+  changesFilesTruncated: '仅列出前 1000 个文件。',
+  changesKeysHint: '↑/↓ 或 j/k 在文件间移动 · Esc 关闭',
   claudeAttached: '已在 Warp 中连接到 Claude Code 会话',
   claudeResumed: '已在 Warp 中恢复 Claude Code 会话',
   claudeOpenedFresh: '已在 Warp 中打开新的 Claude Code 会话',
@@ -1148,6 +1216,23 @@ const zhHant: KanbanMessages = {
   liveEmpty: '尚無內容 — 工作單元、卡片和 Claude Code 的動態會顯示在這裡',
   liveError: '無法載入即時動態',
   liveSources: { card: '卡片', claude: 'claude', hermes: 'hermes', stage: '階段' },
+  changes: '變更',
+  changesFiles: n => `${n} 個檔案`,
+  changesOpenFull: '開啟完整檢視',
+  changesEmpty: '自基準提交以來尚無變更',
+  changesError: '無法載入變更',
+  changesCommits: n => `基準以來的提交 (${n})`,
+  changesFilesHeading: '檔案',
+  changesDirty: '未提交的變更',
+  changesLive: '即時',
+  changesShowDiff: '顯示差異',
+  changesCollapsed: '鎖定檔或產生的檔案 — 預設隱藏其差異。',
+  changesBinary: '二進位檔案',
+  changesTruncated: '此差異過大，已在 300 KB 處截斷。',
+  changesSelectFile: '選擇一個檔案以檢視其差異',
+  changesUntracked: '未追蹤',
+  changesFilesTruncated: '僅列出前 1000 個檔案。',
+  changesKeysHint: '↑/↓ 或 j/k 在檔案間移動 · Esc 關閉',
   claudeAttached: '已在 Warp 中連接到 Claude Code 工作階段',
   claudeResumed: '已在 Warp 中繼續 Claude Code 工作階段',
   claudeOpenedFresh: '已在 Warp 中開啟新的 Claude Code 工作階段',

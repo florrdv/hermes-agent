@@ -58,6 +58,7 @@ import {
   useKanbanScope
 } from './api'
 import { latestRunChatSession } from './chat-session'
+import { ChangesTab } from './drawer-changes'
 import { LiveFeed } from './drawer-live'
 import { ModelOverrideField, overridePatch } from './model-override'
 import {
@@ -685,9 +686,9 @@ function LinkChips({
   )
 }
 
-type FeedTab = 'activity' | 'comments' | 'live' | 'log' | 'runs'
+type FeedTab = 'activity' | 'changes' | 'comments' | 'live' | 'log' | 'runs'
 
-/** The main column's feed: Comments (default) / Live / Activity / Runs / Worker log,
+/** The main column's feed: Comments (default) / Live / Changes / Activity / Runs / Worker log,
  *  selected Jira-style with a segmented control ("Activity ▸ Show: …"). The
  *  control hides itself when only comments exist — nothing to switch to. */
 function FeedTabs({
@@ -709,11 +710,13 @@ function FeedTabs({
   const [tab, setTab] = useState<FeedTab>('comments')
 
   const hasLog = !!log?.exists && !!log.content
-  const switchable = detail.events.length > 0 || detail.runs.length > 0 || hasLog
+  const hasWorkspace = !!detail.task.workspace_path
+  const switchable = detail.events.length > 0 || detail.runs.length > 0 || hasLog || hasWorkspace
 
   const shown: Record<FeedTab, boolean> = {
     comments: true,
     live: detail.runs.length > 0,
+    changes: hasWorkspace,
     activity: detail.events.length > 0,
     runs: detail.runs.length > 0,
     log: hasLog
@@ -722,6 +725,7 @@ function FeedTabs({
   const tabs = [
     { id: 'comments' as const, label: k.comments(detail.comments.length) },
     { id: 'live' as const, label: k.live },
+    { id: 'changes' as const, label: k.changes },
     { id: 'activity' as const, label: k.activity(detail.events.length) },
     { id: 'runs' as const, label: k.runs(detail.runs.length) },
     { id: 'log' as const, label: k.workerLog }
@@ -756,6 +760,14 @@ function FeedTabs({
         </>
       )}
       {tab === 'live' && <LiveFeed key={detail.task.id} running={running} taskId={detail.task.id} />}
+      {tab === 'changes' && (
+        <ChangesTab
+          key={detail.task.id}
+          running={running}
+          taskId={detail.task.id}
+          title={detail.task.title || detail.task.id}
+        />
+      )}
       {tab === 'activity' && (
         <ScrollFade deps={detail.events.length} max="7rem">
           <ul className="flex flex-col gap-1">

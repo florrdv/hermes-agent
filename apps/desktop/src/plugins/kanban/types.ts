@@ -252,6 +252,59 @@ export interface TaskTimeline {
   entries: TimelineEntry[]
 }
 
+/** A file the task's workspace changed since its base commit. `collapsed` marks
+ *  lockfiles / generated files whose diff is not loaded until asked for. */
+export interface ChangedFile {
+  path: string
+  /** Set on renames. */
+  old_path?: string
+  status: 'A' | 'D' | 'M' | 'R'
+  additions: number
+  deletions: number
+  binary: boolean
+  collapsed: boolean
+  untracked: boolean
+}
+
+interface ChangesUnavailable {
+  task_id: string
+  status: string
+  available: false
+  /** Why the workspace can't be diffed (no workspace, not a git work tree, …). */
+  reason: string
+}
+
+/** GET /tasks/:id/changes — the workspace vs the commit HEAD pointed at when the
+ *  first run started, uncommitted and untracked files included. */
+export type TaskChanges =
+  | ChangesUnavailable
+  | {
+      task_id: string
+      status: string
+      available: true
+      workspace: string
+      base: { sha: string; subject: string; source: 'merge_base' | 'run_start' }
+      head: { sha: string }
+      commits: { sha: string; subject: string }[]
+      dirty: boolean
+      totals: { files: number; additions: number; deletions: number }
+      files_truncated: boolean
+      files: ChangedFile[]
+    }
+
+/** GET /tasks/:id/changes?file= — one listed file's unified patch. */
+export type FilePatch =
+  | ChangesUnavailable
+  | {
+      task_id: string
+      status: string
+      available: true
+      path: string
+      patch: string
+      truncated: boolean
+      binary: boolean
+    }
+
 /** GET /tasks/:id/log — the worker's stdout/stderr tail. */
 export interface WorkerLog {
   exists: boolean

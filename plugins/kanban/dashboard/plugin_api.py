@@ -1039,6 +1039,17 @@ def task_timeline_endpoint(task_id: str, since: Optional[str] = Query(None),
         return kanban_timeline.task_timeline(task_id, board=board, since=since, limit=limit)
 
 
+@router.get("/tasks/{task_id}/changes")
+def task_changes_endpoint(task_id: str, file: Optional[str] = Query(None), board: Optional[str] = Query(None)):
+    """The task workspace's code changes since the commit its first run started from (read-only
+    git); ``file`` returns that one file's unified patch. Not a git work tree → ``available: false``."""
+    from hermes_cli import kanban_changes
+
+    board = _resolve_board(board)
+    with _map_errors(404, LookupError):
+        return kanban_changes.task_changes(task_id, board=board, file=file)
+
+
 class SpecifyBody(BaseModel):
     """Only the author is configurable; model + prompt come from
     ``auxiliary.triage_specifier`` in config.yaml, same as the CLI."""

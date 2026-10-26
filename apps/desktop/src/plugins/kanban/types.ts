@@ -94,8 +94,6 @@ export interface KanbanEvent {
   kind: string
   payload: unknown
   created_at: number
-  /** The run (attempt) the event belongs to; null for task-scoped events. */
-  run_id?: null | number
 }
 
 export interface KanbanAttachment {
@@ -147,6 +145,10 @@ export interface KanbanTaskDetail {
   links: { parents: string[]; children: string[] }
   link_tasks?: KanbanLinkTask[] | null
   runs: KanbanRun[]
+  /** A run recorded a Claude Code session (or tmux session), or one can be
+   *  inferred from its transcript (`session_available()` in
+   *  hermes_cli/kanban_claude_session.py). Absent on older backends. */
+  claude_session_available?: boolean
 }
 
 /** POST /tasks/{id}/open-session — `open_session()` in

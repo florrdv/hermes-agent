@@ -168,12 +168,8 @@ type KanbanMessages = {
   imageUploadFailed: (name: string) => string
   imageLoadFailed: (name: string) => string
   taskActions: string
-  goToChat: string
-  goToChatTip: string
-  goToChatNoSession: string
   openClaude: string
   openClaudeTip: string
-  openClaudeNoRun: string
   live: string
   liveNow: string
   liveEmpty: string
@@ -442,12 +438,8 @@ export const en: KanbanMessages = {
   imageUploadFailed: name => `Couldn’t upload ${name}`,
   imageLoadFailed: name => `Couldn’t load image ${name}`,
   taskActions: 'Task actions',
-  goToChat: 'Go to chat',
-  goToChatTip: "Open the chat session the latest run's worker ran in",
-  goToChatNoSession: 'No chat yet — available once a worker has run this task',
   openClaude: 'Open Claude Code',
   openClaudeTip: "Open this card's Claude Code session in Warp",
-  openClaudeNoRun: 'No Claude Code session yet — available once a worker has run this task',
   live: 'Live',
   liveNow: 'Now:',
   liveEmpty: 'Nothing yet — the worker, the card and Claude Code show up here as they happen',
@@ -708,12 +700,8 @@ const ja: KanbanMessages = {
   imageUploadFailed: name => `${name} をアップロードできませんでした`,
   imageLoadFailed: name => `画像 ${name} を読み込めませんでした`,
   taskActions: 'タスクの操作',
-  goToChat: 'チャットを開く',
-  goToChatTip: '最新の実行でワーカーが使ったチャットセッションを開きます',
-  goToChatNoSession: 'まだチャットはありません — ワーカーがこのタスクを実行すると利用できます',
   openClaude: 'Claude Code を開く',
   openClaudeTip: 'このカードの Claude Code セッションを Warp で開きます',
-  openClaudeNoRun: 'まだ Claude Code セッションはありません — ワーカーがこのタスクを実行すると利用できます',
   live: 'ライブ',
   liveNow: '現在:',
   liveEmpty: 'まだ何もありません — ワーカー、カード、Claude Code の動きがここに表示されます',
@@ -972,12 +960,8 @@ const zh: KanbanMessages = {
   imageUploadFailed: name => `无法上传 ${name}`,
   imageLoadFailed: name => `无法加载图片 ${name}`,
   taskActions: '任务操作',
-  goToChat: '前往聊天',
-  goToChatTip: '打开最近一次运行中 worker 所在的聊天会话',
-  goToChatNoSession: '暂无聊天 — worker 运行此任务后可用',
   openClaude: '打开 Claude Code',
   openClaudeTip: '在 Warp 中打开此卡片的 Claude Code 会话',
-  openClaudeNoRun: '暂无 Claude Code 会话 — worker 运行此任务后可用',
   live: '实时',
   liveNow: '当前:',
   liveEmpty: '暂无内容 — 工作单元、卡片和 Claude Code 的动态会显示在这里',
@@ -1235,12 +1219,8 @@ const zhHant: KanbanMessages = {
   imageUploadFailed: name => `無法上傳 ${name}`,
   imageLoadFailed: name => `無法載入圖片 ${name}`,
   taskActions: '任務操作',
-  goToChat: '前往聊天',
-  goToChatTip: '開啟最近一次執行中 worker 所在的聊天工作階段',
-  goToChatNoSession: '尚無聊天 — worker 執行此任務後可用',
   openClaude: '開啟 Claude Code',
   openClaudeTip: '在 Warp 中開啟此卡片的 Claude Code 工作階段',
-  openClaudeNoRun: '尚無 Claude Code 工作階段 — worker 執行此任務後可用',
   live: '即時',
   liveNow: '目前:',
   liveEmpty: '尚無內容 — 工作單元、卡片和 Claude Code 的動態會顯示在這裡',

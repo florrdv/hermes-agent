@@ -162,9 +162,6 @@ type KanbanMessages = {
   noAttachments: string
   uploadAttachment: string
   taskActions: string
-  goToChat: string
-  goToChatTip: string
-  goToChatNoSession: string
   openClaude: string
   openClaudeTip: string
   openClaudeNoRun: string
@@ -430,9 +427,6 @@ export const en: KanbanMessages = {
   noAttachments: 'No attachments yet.',
   uploadAttachment: 'Upload attachment',
   taskActions: 'Task actions',
-  goToChat: 'Go to chat',
-  goToChatTip: "Open the chat session the latest run's worker ran in",
-  goToChatNoSession: 'No chat yet — available once a worker has run this task',
   openClaude: 'Open Claude Code',
   openClaudeTip: "Open this card's Claude Code session in Warp",
   openClaudeNoRun: 'No Claude Code session yet — available once a worker has run this task',
@@ -690,9 +684,6 @@ const ja: KanbanMessages = {
   noAttachments: 'まだ添付はありません。',
   uploadAttachment: '添付をアップロード',
   taskActions: 'タスクの操作',
-  goToChat: 'チャットを開く',
-  goToChatTip: '最新の実行でワーカーが使ったチャットセッションを開きます',
-  goToChatNoSession: 'まだチャットはありません — ワーカーがこのタスクを実行すると利用できます',
   openClaude: 'Claude Code を開く',
   openClaudeTip: 'このカードの Claude Code セッションを Warp で開きます',
   openClaudeNoRun: 'まだ Claude Code セッションはありません — ワーカーがこのタスクを実行すると利用できます',
@@ -948,9 +939,6 @@ const zh: KanbanMessages = {
   noAttachments: '暂无附件。',
   uploadAttachment: '上传附件',
   taskActions: '任务操作',
-  goToChat: '前往聊天',
-  goToChatTip: '打开最近一次运行中 worker 所在的聊天会话',
-  goToChatNoSession: '暂无聊天 — worker 运行此任务后可用',
   openClaude: '打开 Claude Code',
   openClaudeTip: '在 Warp 中打开此卡片的 Claude Code 会话',
   openClaudeNoRun: '暂无 Claude Code 会话 — worker 运行此任务后可用',
@@ -1205,9 +1193,6 @@ const zhHant: KanbanMessages = {
   noAttachments: '尚無附件。',
   uploadAttachment: '上傳附件',
   taskActions: '任務操作',
-  goToChat: '前往聊天',
-  goToChatTip: '開啟最近一次執行中 worker 所在的聊天工作階段',
-  goToChatNoSession: '尚無聊天 — worker 執行此任務後可用',
   openClaude: '開啟 Claude Code',
   openClaudeTip: '在 Warp 中開啟此卡片的 Claude Code 工作階段',
   openClaudeNoRun: '尚無 Claude Code 工作階段 — worker 執行此任務後可用',

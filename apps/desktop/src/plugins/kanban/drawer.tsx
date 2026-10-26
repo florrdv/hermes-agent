@@ -57,7 +57,6 @@ import {
   uploadAttachment,
   useKanbanScope
 } from './api'
-import { latestRunChatSession } from './chat-session'
 import { ChangesTab } from './drawer-changes'
 import { LiveFeed } from './drawer-live'
 import { ModelOverrideField, overridePatch } from './model-override'
@@ -854,37 +853,6 @@ function FeedTabs({
   )
 }
 
-/** Open the chat session the card's latest worker ran in, through the same
- *  `openSession` door a sidebar row click uses. The profile rides along only
- *  when the worker ran under another profile than the one in front. */
-function GoToChatButton({ detail, onOpened }: { detail?: KanbanTaskDetail; onOpened: () => void }) {
-  const k = useKanban()
-  const session = detail ? latestRunChatSession(detail) : null
-
-  const open = () => {
-    if (!session) {
-      return
-    }
-
-    const profile = session.profile && session.profile !== host.state.profile.get() ? session.profile : null
-
-    onOpened()
-    host.openSession(session.sessionId, profile ? { profile } : {}).catch(err => host.notifyError(err, k.goToChat))
-  }
-
-  return (
-    <Tip label={session ? k.goToChatTip : k.goToChatNoSession}>
-      {/* A disabled button swallows pointer events, so the tip hangs off a wrapper. */}
-      <span className="inline-flex">
-        <Button disabled={!session} onClick={open} size="xs" variant="outline">
-          <Codicon name="comment-discussion" size="0.75rem" />
-          {k.goToChat}
-        </Button>
-      </span>
-    </Tip>
-  )
-}
-
 const CLAUDE_OPENED: Record<OpenClaudeSessionResult['mode'], (k: KanbanText) => string> = {
   attach: k => k.claudeAttached,
   fresh: k => k.claudeOpenedFresh,
@@ -1103,7 +1071,6 @@ export function TaskDrawer({
             <div className="ml-auto flex items-center gap-0.5">
               {task && (
                 <>
-                  <GoToChatButton detail={detail} onOpened={onClose} />
                   <OpenClaudeButton detail={detail} />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

@@ -1,8 +1,7 @@
 """Which session sources ``projects.tree`` places in the sidebar.
 
-Kanban worker sessions are listed: task worktrees (``<repo>/.worktrees/t_<hex>``) fold into the
-repo's one ``::kanban`` lane, and a ``dir:`` workspace (any other directory) lands like any other
-session cwd. Cron runs and one-shot runs are not conversations and stay out of the tree."""
+Kanban workers, cron runs and one-shot runs are not user conversations and stay out of the tree,
+whether a worker ran in a task worktree (``<repo>/.worktrees/t_<hex>``) or a ``dir:`` workspace."""
 
 from __future__ import annotations
 
@@ -79,7 +78,7 @@ def _seed(db, session_id: str, source: str, cwd: Path) -> None:
     db.append_message(session_id, "user", f"hello from {session_id}")
 
 
-def test_kanban_workers_join_the_tree_while_cron_and_oneshot_stay_out(tmp_path):
+def test_kanban_cron_and_oneshot_sessions_stay_out_of_the_tree(tmp_path):
     root = tmp_path.resolve()
     home = root / "home"
     home.mkdir()
@@ -99,15 +98,8 @@ def test_kanban_workers_join_the_tree_while_cron_and_oneshot_stay_out(tmp_path):
         tree = _call("projects.tree")
         drilled = _call("projects.project_sessions", {"project_id": str(repo)})["project"]
 
-    assert set(tree["scoped_session_ids"]) == {"chat", "worker-wt", "worker-dir"}
+    assert set(tree["scoped_session_ids"]) == {"chat"}
+    assert str(dir_workspace) not in {p["id"] for p in tree["projects"]}
 
-    lanes = {g["id"]: g for r in drilled["repos"] for g in r["groups"]}
-    kanban_lane = lanes[f"{repo}::kanban"]
-    assert kanban_lane["isKanban"] is True
-    assert [s["id"] for s in kanban_lane["sessions"]] == ["worker-wt"]
-    assert [s["id"] for s in lanes[f"{repo}::branch::main"]["sessions"]] == ["chat"]
-
-    # A `dir:` workspace is an ordinary non-git folder project, not the Home bucket.
-    by_id = {p["id"]: p for p in tree["projects"]}
-    assert by_id[str(dir_workspace)]["sessionIds"] == ["worker-dir"]
-    assert not by_id[str(dir_workspace)]["isNoProject"]
+    listed = {s["id"] for r in drilled["repos"] for g in r["groups"] for s in g["sessions"]}
+    assert listed == {"chat"}

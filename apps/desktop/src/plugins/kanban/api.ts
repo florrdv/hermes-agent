@@ -18,6 +18,7 @@
 import {
   atom,
   captureGatewayFileDownload,
+  captureGatewayFileRead,
   host,
   type PluginOs,
   type PluginRestOptions,
@@ -35,6 +36,7 @@ import type {
   BoardMeta,
   BoardsResponse,
   FilePatch,
+  KanbanAttachment,
   KanbanBoard,
   KanbanProfile,
   KanbanProject,
@@ -394,9 +396,10 @@ export const fetchBoard = (archived: boolean) =>
 
 export const fetchTask = async (id: string) => {
   const downloadAttachment = captureGatewayFileDownload()
+  const readAttachment = captureGatewayFileRead()
   const detail = await call<KanbanTaskDetail>(withBoard(`/tasks/${id}`))
 
-  return { ...detail, downloadAttachment }
+  return { ...detail, downloadAttachment, readAttachment }
 }
 
 /** The card's merged Live feed; pass the previous page's `cursor` as `since`
@@ -486,7 +489,22 @@ export const openClaudeSession = (id: string) =>
   call<OpenClaudeSessionResult>(withBoard(`/tasks/${id}/open-session`), { method: 'POST', body: {} })
 
 export const uploadAttachment = (id: string, upload: { filename: string; contentType?: string; bytes: ArrayBuffer }) =>
-  call(withBoard(`/tasks/${id}/attachments`), { method: 'POST', upload })
+  call<{ attachment: KanbanAttachment | null }>(withBoard(`/tasks/${id}/attachments`), { method: 'POST', upload })
+
+/** Deletes an attachment on the board and backend selected NOW. A deferred
+ *  discard must not follow a later switch: attachment ids are per board, so
+ *  the same id elsewhere names someone else's file. After a backend switch it
+ *  does nothing. */
+export function captureAttachmentDelete() {
+  const scope = routedScope()
+  const board = withBoard('')
+
+  return async (id: number | string) => {
+    if (routedScope() === scope) {
+      await call(`/attachments/${id}${board}`, { method: 'DELETE' })
+    }
+  }
+}
 
 export const createBoard = (slug: string, name: string, projectId?: string) =>
   call<{ board: { slug: string } }>('/boards', {

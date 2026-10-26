@@ -199,6 +199,22 @@ def resolve_open_session(
                            + ("" if workspace else "; task workspace does not exist, starting in home"))
 
 
+def session_available(
+    task: kb.Task, runs: Iterable[kb.Run], *, is_dir: Callable[[str], bool] = os.path.isdir,
+    claude_projects_dir: Optional[Path] = None,
+) -> bool:
+    """Whether a Claude Code session was ever attached to the card: a run recorded a tmux or
+    Claude session, or the latest run wrote a transcript for the workspace (ambiguous matches
+    count). Cheap enough for every task detail read: no tmux probe, so an unrecorded live
+    ``hc-<task_id>`` session alone does not count."""
+    runs = list(runs)
+    if _recorded(runs, TMUX_KEY) or _recorded(runs, SESSION_ID_KEY):
+        return True
+    workspace = _existing_dir(task.workspace_path, is_dir)
+    inferred, ambiguous = _infer_from_transcripts(task, runs, workspace, claude_projects_dir, is_dir)
+    return inferred is not None or bool(ambiguous)
+
+
 def tmux_session_alive(name: str) -> bool:
     """``tmux has-session`` for an exact session name; no tmux installed = not alive."""
     from hermes_platform.resolver import locate_command

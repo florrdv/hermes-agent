@@ -1,10 +1,13 @@
 """Kanban dashboard plugin: POST /tasks/{id}/open-session resolves the card's Claude Code
 session and hands it to the Warp launcher (mocked here). Warp being unavailable is a 200
-whose body carries the command for the user to run; an unknown task is a 404."""
+whose body carries the command for the user to run; an unknown task is a 404. GET /tasks/{id}
+reports ``claude_session_available`` (recorded or inferable session) so the desktop drawer only
+offers "Open Claude Code" on cards that had one."""
 
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -16,6 +19,7 @@ from hermes_cli import kanban_claude_session as kcs
 from hermes_cli import kanban_db as kb
 from hermes_cli import kanban_db_connect as kbc
 from hermes_cli import kanban_warp
+from hermes_cli.kanban_claude_transcripts import project_slug
 
 
 def _load_plugin_router():
@@ -95,3 +99,47 @@ def test_open_session_without_warp_returns_command_to_run(client, tmp_path, monk
 def test_open_session_unknown_task_is_404(client, monkeypatch):
     monkeypatch.setattr(kanban_warp, "launch_in_warp", lambda plan: pytest.fail("must not launch"))
     assert client.post("/api/plugins/kanban/tasks/t_missing/open-session").status_code == 404
+
+
+# --- GET /tasks/{id}: claude_session_available gates the drawer's "Open Claude Code" --------
+
+def _task_detail(client, tid: str) -> dict:
+    r = client.get(f"/api/plugins/kanban/tasks/{tid}")
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def _claimed_task(tmp_path) -> str:
+    with kbc.connect_closing() as conn:
+        tid = kb.create_task(conn, title="t", assignee="coder", workspace_kind="dir", workspace_path=str(tmp_path))
+        kb.claim_task(conn, tid, claimer=kb._claimer_id())
+    return tid
+
+
+def test_task_detail_reports_a_recorded_claude_session(client, tmp_path):
+    assert _task_detail(client, _task_with_session(tmp_path))["claude_session_available"] is True
+
+
+def test_task_detail_reports_a_recorded_tmux_session(client, tmp_path):
+    tid = _claimed_task(tmp_path)
+    with kbc.connect_closing() as conn:
+        kcs.record_claude_session(conn, tid, tmux=f"hc-{tid}")
+
+    assert _task_detail(client, tid)["claude_session_available"] is True
+
+
+def test_task_detail_infers_a_session_from_the_latest_runs_transcript(client, tmp_path):
+    tid = _claimed_task(tmp_path)
+    project = tmp_path / ".claude" / "projects" / project_slug(str(tmp_path))
+    project.mkdir(parents=True)
+    (project / "sess-x.jsonl").write_text(json.dumps({"type": "user", "cwd": str(tmp_path)}) + "\n")
+
+    assert _task_detail(client, tid)["claude_session_available"] is True
+
+
+def test_task_detail_without_any_claude_session_is_unavailable(client, tmp_path):
+    with kbc.connect_closing() as conn:
+        never_ran = kb.create_task(conn, title="idle", workspace_kind="dir", workspace_path=str(tmp_path))
+
+    assert _task_detail(client, never_ran)["claude_session_available"] is False
+    assert _task_detail(client, _claimed_task(tmp_path))["claude_session_available"] is False

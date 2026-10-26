@@ -382,6 +382,7 @@ def get_task(
     board: Optional[str] = Query(None),
     run_state_type: Optional[str] = Query(None, description="With run_state_name: filter runs by column 'status' or 'outcome'"),
     run_state_name: Optional[str] = Query(None, description="With run_state_type: exact value for that run column")):
+    from hermes_cli import kanban_claude_session, kanban_claude_transcripts
     with _board_conn(board) as (board, conn):
         if (run_state_type is None) ^ (run_state_name is None):
             raise HTTPException(status_code=400, detail="run_state_type and run_state_name must be passed together or omitted")
@@ -406,7 +407,11 @@ def get_task(
             "child_results": [
                 {"id": c.id, "title": c.title, "status": c.status, "latest_summary": child_summaries.get(c.id), "result": c.result}
                 for c in children],
-            "runs": [asdict(r) for r in kanban_db.list_runs(conn, task_id, state_type=run_state_type, state_name=run_state_name)]}
+            "runs": [asdict(r) for r in kanban_db.list_runs(conn, task_id, state_type=run_state_type, state_name=run_state_name)],
+            # Gates the desktop drawer's "Open Claude Code"; judged on every run, not the filtered list.
+            "claude_session_available": kanban_claude_session.session_available(
+                task, kanban_db.list_runs(conn, task_id),
+                claude_projects_dir=kanban_claude_transcripts.default_projects_dir())}
 
 
 # --- POST /tasks ------------------------------------------------------------

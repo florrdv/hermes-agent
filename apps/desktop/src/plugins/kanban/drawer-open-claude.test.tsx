@@ -104,22 +104,36 @@ async function enabledButton() {
 
 const openSessionCalls = () => rest.mock.calls.filter(([path]) => path.split('?')[0].endsWith('/open-session'))
 
+// A run whose handoff recorded a Claude Code session; the backend reports it as
+// `claude_session_available` on the task detail.
+const withSession: KanbanTaskDetail = {
+  ...baseDetail,
+  runs: [{ id: 41, profile: 'claude-coder', status: 'done', metadata: { claude_session_id: 'sess-1' } }],
+  claude_session_available: true
+}
+
 describe('Open Claude Code', () => {
-  it('is disabled while the card has never run', async () => {
-    detail = baseDetail
+  it('is hidden when no Claude Code session was ever attached to the card', async () => {
+    detail = { ...baseDetail, runs: [{ id: 41, profile: 'coder', status: 'done' }], claude_session_available: false }
     openDrawer()
 
-    const button = await screen.findByRole('button', { name: en.openClaude })
-    expect((button as HTMLButtonElement).disabled).toBe(true)
-    fireEvent.click(button)
-    expect(openSessionCalls()).toHaveLength(0)
+    await screen.findByRole('button', { name: en.taskActions })
+    expect(screen.queryByRole('button', { name: en.openClaude })).toBeNull()
+  })
+
+  it('is hidden on a backend that does not report claude_session_available', async () => {
+    detail = { ...baseDetail, runs: [{ id: 41, profile: 'claude-coder', status: 'done' }] }
+    openDrawer()
+
+    await screen.findByRole('button', { name: en.taskActions })
+    expect(screen.queryByRole('button', { name: en.openClaude })).toBeNull()
   })
 
   it("POSTs the card's open-session endpoint on the selected board and toasts the resume", async () => {
     const notify = vi.spyOn(host, 'notify')
 
     $boardSlug.set('side-project')
-    detail = { ...baseDetail, runs: [{ id: 41, profile: 'claude-coder', status: 'done' }] }
+    detail = withSession
     openResult = resumed
     openDrawer()
 
@@ -137,7 +151,7 @@ describe('Open Claude Code', () => {
   it('surfaces the error and the command to run when Warp could not be launched', async () => {
     const notify = vi.spyOn(host, 'notify')
 
-    detail = { ...baseDetail, runs: [{ id: 41, profile: 'claude-coder', status: 'done' }] }
+    detail = withSession
     openResult = { ...resumed, launched: false, error: 'Warp is not installed', launch_config: null }
     openDrawer()
 

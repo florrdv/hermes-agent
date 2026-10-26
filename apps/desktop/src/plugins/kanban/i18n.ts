@@ -164,7 +164,6 @@ type KanbanMessages = {
   taskActions: string
   openClaude: string
   openClaudeTip: string
-  openClaudeNoRun: string
   live: string
   liveNow: string
   liveEmpty: string
@@ -429,7 +428,6 @@ export const en: KanbanMessages = {
   taskActions: 'Task actions',
   openClaude: 'Open Claude Code',
   openClaudeTip: "Open this card's Claude Code session in Warp",
-  openClaudeNoRun: 'No Claude Code session yet — available once a worker has run this task',
   live: 'Live',
   liveNow: 'Now:',
   liveEmpty: 'Nothing yet — the worker, the card and Claude Code show up here as they happen',
@@ -686,7 +684,6 @@ const ja: KanbanMessages = {
   taskActions: 'タスクの操作',
   openClaude: 'Claude Code を開く',
   openClaudeTip: 'このカードの Claude Code セッションを Warp で開きます',
-  openClaudeNoRun: 'まだ Claude Code セッションはありません — ワーカーがこのタスクを実行すると利用できます',
   live: 'ライブ',
   liveNow: '現在:',
   liveEmpty: 'まだ何もありません — ワーカー、カード、Claude Code の動きがここに表示されます',
@@ -941,7 +938,6 @@ const zh: KanbanMessages = {
   taskActions: '任务操作',
   openClaude: '打开 Claude Code',
   openClaudeTip: '在 Warp 中打开此卡片的 Claude Code 会话',
-  openClaudeNoRun: '暂无 Claude Code 会话 — worker 运行此任务后可用',
   live: '实时',
   liveNow: '当前:',
   liveEmpty: '暂无内容 — 工作单元、卡片和 Claude Code 的动态会显示在这里',
@@ -1195,7 +1191,6 @@ const zhHant: KanbanMessages = {
   taskActions: '任務操作',
   openClaude: '開啟 Claude Code',
   openClaudeTip: '在 Warp 中開啟此卡片的 Claude Code 工作階段',
-  openClaudeNoRun: '尚無 Claude Code 工作階段 — worker 執行此任務後可用',
   live: '即時',
   liveNow: '目前:',
   liveEmpty: '尚無內容 — 工作單元、卡片和 Claude Code 的動態會顯示在這裡',

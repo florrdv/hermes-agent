@@ -887,28 +887,27 @@ function notifyClaudeOpened(k: KanbanText, result: OpenClaudeSessionResult) {
 
 /** Open the card's Claude Code session in Warp on the backend host
  *  (`POST /tasks/{id}/open-session`): attach the live tmux session, else
- *  resume the recorded one, else a fresh `claude` in the workspace. Gated on
- *  the card having run at all — before a worker claims it there is nothing to
- *  reopen. */
-function OpenClaudeButton({ detail }: { detail?: KanbanTaskDetail }) {
+ *  resume the recorded one. Rendered only for a card a Claude Code session
+ *  was ever attached to (`claude_session_available`). */
+function OpenClaudeButton({ detail }: { detail: KanbanTaskDetail }) {
   const k = useKanban()
-  const hasRun = !!detail && detail.runs.length > 0
 
   const open = useMutation({
-    mutationFn: () => openClaudeSession(detail!.task.id),
+    mutationFn: () => openClaudeSession(detail.task.id),
     onError: err => host.notifyError(err, k.openClaude),
     onSuccess: result => notifyClaudeOpened(k, result)
   })
 
+  if (!detail.claude_session_available) {
+    return null
+  }
+
   return (
-    <Tip label={hasRun ? k.openClaudeTip : k.openClaudeNoRun}>
-      {/* A disabled button swallows pointer events, so the tip hangs off a wrapper. */}
-      <span className="inline-flex">
-        <Button disabled={!hasRun || open.isPending} onClick={() => open.mutate()} size="xs" variant="outline">
-          <Codicon name="terminal" size="0.75rem" />
-          {k.openClaude}
-        </Button>
-      </span>
+    <Tip label={k.openClaudeTip}>
+      <Button disabled={open.isPending} onClick={() => open.mutate()} size="xs" variant="outline">
+        <Codicon name="terminal" size="0.75rem" />
+        {k.openClaude}
+      </Button>
     </Tip>
   )
 }
@@ -1071,7 +1070,7 @@ export function TaskDrawer({
             <div className="ml-auto flex items-center gap-0.5">
               {task && (
                 <>
-                  <OpenClaudeButton detail={detail} />
+                  <OpenClaudeButton detail={detail!} />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button aria-label={k.taskActions} size="icon-xs" variant="ghost">

@@ -163,6 +163,10 @@ type KanbanMessages = {
   uploadAttachment: string
   attachImage: string
   uploadingImage: string
+  imageTooLarge: (name: string, mb: number) => string
+  notAnImage: (names: string) => string
+  imageUploadFailed: (name: string) => string
+  imageLoadFailed: (name: string) => string
   taskActions: string
   goToChat: string
   goToChatTip: string
@@ -433,6 +437,10 @@ export const en: KanbanMessages = {
   uploadAttachment: 'Upload attachment',
   attachImage: 'Attach image',
   uploadingImage: 'Uploading image…',
+  imageTooLarge: (name, mb) => `${name} is over ${mb} MB — too large to show in a comment`,
+  notAnImage: names => `Only images can be dropped here — skipped ${names}`,
+  imageUploadFailed: name => `Couldn’t upload ${name}`,
+  imageLoadFailed: name => `Couldn’t load image ${name}`,
   taskActions: 'Task actions',
   goToChat: 'Go to chat',
   goToChatTip: "Open the chat session the latest run's worker ran in",
@@ -695,6 +703,10 @@ const ja: KanbanMessages = {
   uploadAttachment: '添付をアップロード',
   attachImage: '画像を添付',
   uploadingImage: '画像をアップロード中…',
+  imageTooLarge: (name, mb) => `${name} は ${mb} MB を超えているため、コメントに表示できません`,
+  notAnImage: names => `ここにドロップできるのは画像のみです — ${names} をスキップしました`,
+  imageUploadFailed: name => `${name} をアップロードできませんでした`,
+  imageLoadFailed: name => `画像 ${name} を読み込めませんでした`,
   taskActions: 'タスクの操作',
   goToChat: 'チャットを開く',
   goToChatTip: '最新の実行でワーカーが使ったチャットセッションを開きます',
@@ -955,6 +967,10 @@ const zh: KanbanMessages = {
   uploadAttachment: '上传附件',
   attachImage: '附加图片',
   uploadingImage: '正在上传图片…',
+  imageTooLarge: (name, mb) => `${name} 超过 ${mb} MB，无法在评论中显示`,
+  notAnImage: names => `此处只能拖放图片 — 已跳过 ${names}`,
+  imageUploadFailed: name => `无法上传 ${name}`,
+  imageLoadFailed: name => `无法加载图片 ${name}`,
   taskActions: '任务操作',
   goToChat: '前往聊天',
   goToChatTip: '打开最近一次运行中 worker 所在的聊天会话',
@@ -1214,6 +1230,10 @@ const zhHant: KanbanMessages = {
   uploadAttachment: '上傳附件',
   attachImage: '附加圖片',
   uploadingImage: '正在上傳圖片…',
+  imageTooLarge: (name, mb) => `${name} 超過 ${mb} MB，無法在留言中顯示`,
+  notAnImage: names => `此處只能拖放圖片 — 已略過 ${names}`,
+  imageUploadFailed: name => `無法上傳 ${name}`,
+  imageLoadFailed: name => `無法載入圖片 ${name}`,
   taskActions: '任務操作',
   goToChat: '前往聊天',
   goToChatTip: '開啟最近一次執行中 worker 所在的聊天工作階段',

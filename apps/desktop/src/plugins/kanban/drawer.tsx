@@ -58,7 +58,13 @@ import {
 } from './api'
 import { latestRunChatSession } from './chat-session'
 import { ChangesTab } from './drawer-changes'
-import { CommentComposer, type UploadImage, uploadImageAttachment, useAttachmentImg } from './drawer-comments'
+import {
+  AttachmentImages,
+  CommentComposer,
+  CommentImage,
+  type UploadImage,
+  uploadImageAttachment
+} from './drawer-comments'
 import { LiveFeed } from './drawer-live'
 import { ModelOverrideField, overridePatch } from './model-override'
 import {
@@ -624,7 +630,6 @@ function FeedTabs({
 }) {
   const k = useKanban()
   const [tab, setTab] = useState<FeedTab>('comments')
-  const commentImg = useAttachmentImg(detail.attachments, readAttachment)
 
   const hasLog = !!log?.exists && !!log.content
   const hasWorkspace = !!detail.task.workspace_path
@@ -661,20 +666,24 @@ function FeedTabs({
       {tab === 'comments' && (
         <>
           {detail.comments.length > 0 && (
-            // Comment images are thumbnails, not the chat's full-width previews.
-            <ul className="flex flex-col gap-3 [--image-preview-height:16rem] [--image-preview-max-width:24rem]">
-              {detail.comments.map(comment => (
-                <li className="flex flex-col gap-0.5" key={comment.id}>
-                  <div className="flex items-baseline gap-2 text-[0.75rem]">
-                    <span className="font-medium text-(--ui-text-secondary)">{comment.author}</span>
-                    <span className="text-[0.625rem] text-(--ui-text-quaternary)">{ago(comment.created_at)}</span>
-                  </div>
-                  <TaskMarkdown img={commentImg} text={comment.body} />
-                </li>
-              ))}
-            </ul>
+            <AttachmentImages attachments={detail.attachments} readAttachment={readAttachment}>
+              {/* Comment images are thumbnails, not the chat's full-width previews. */}
+              <ul className="flex flex-col gap-3 [--image-preview-height:16rem] [--image-preview-max-width:24rem]">
+                {detail.comments.map(comment => (
+                  <li className="flex flex-col gap-0.5" key={comment.id}>
+                    <div className="flex items-baseline gap-2 text-[0.75rem]">
+                      <span className="font-medium text-(--ui-text-secondary)">{comment.author}</span>
+                      <span className="text-[0.625rem] text-(--ui-text-quaternary)">{ago(comment.created_at)}</span>
+                    </div>
+                    <TaskMarkdown img={CommentImage} text={comment.body} />
+                  </li>
+                ))}
+              </ul>
+            </AttachmentImages>
           )}
+          {/* Keyed: a draft (and its in-flight uploads) belongs to one card. */}
           <CommentComposer
+            key={detail.task.id}
             onRequeue={onRequeue}
             onSubmit={onComment}
             // Backends without attachments would 404 the upload.
@@ -976,13 +985,14 @@ export function TaskDrawer({
   })
 
   // Comment images: the composer owns pending + error feedback; a landed
-  // upload refreshes the sidebar list like a sidebar upload does.
+  // upload (and a discarded one) refreshes the sidebar list like a sidebar
+  // upload does.
   const uploadImage: UploadImage = async (file, filename) => {
-    const attachment = await uploadImageAttachment(id!, file, filename)
+    const image = await uploadImageAttachment(id!, file, filename)
 
     invalidate()
 
-    return attachment
+    return image && { ...image, discard: () => image.discard().then(invalidate) }
   }
 
   if (!id) {

@@ -1713,10 +1713,10 @@ export {
 } from '@/app/shell/model-menu-row-decorations'
 export type { StatusbarItem } from '@/app/shell/statusbar-controls'
 export type { TitlebarTool } from '@/app/shell/titlebar-controls'
-/** Canonical raw message renderer: applies Desktop message transforms (including
- * `MEDIA:` delivery directives) and the same rich Markdown/media components as
- * core chat. Prefer this over raw Streamdown for transcript-style messages. */
-export { MessageTextContent } from '@/components/assistant-ui/markdown-text'
+/** Canonical raw message renderer: Desktop message transforms (`MEDIA:` too) and core chat's Markdown/media
+ * components; prefer it over raw Streamdown. `img` swaps the image component for sources only the plugin
+ * can read, delegating the rest to `MarkdownImage`. */
+export { MarkdownImage, MessageTextContent } from '@/components/assistant-ui/markdown-text'
 /** The oversized Collapse lettering an empty chat is titled with — core writes
  *  "HERMES AGENT" with it, a `chat.empty` contribution writes its own name. */
 export { Wordmark } from '@/components/chat/wordmark'
@@ -1878,7 +1878,7 @@ export { formatModifierToken } from '@/lib/keybinds/combo'
  *  regenerated — eviction costs a recompute or a refetch, never correctness. */
 export { LruCache } from '@/lib/lru-cache'
 /** Capture a gateway file download alongside a REST read (see the SDK guide). */
-export { captureGatewayFileDownload } from '@/lib/media'
+export { captureGatewayFileDownload, captureGatewayFileRead } from '@/lib/media'
 /** True when a saved provider id names this `model.options` row: its slug,
  *  display name, or a custom-provider alias (`custom:<key>` vs the bare key). */
 export { catalogProviderMatches } from '@/lib/model-options'

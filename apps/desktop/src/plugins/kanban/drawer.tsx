@@ -22,7 +22,6 @@ import {
   DropdownMenuTrigger,
   ErrorState,
   host,
-  isSubmitEnter,
   Loader,
   LogView,
   MessageTextContent,
@@ -35,7 +34,7 @@ import {
   useQueryClient,
   useValue
 } from '@hermes/plugin-sdk'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ComponentProps, type ComponentType, type ReactNode, useEffect, useRef, useState } from 'react'
 
 import {
   $boardSlug,
@@ -59,6 +58,7 @@ import {
 } from './api'
 import { latestRunChatSession } from './chat-session'
 import { ChangesTab } from './drawer-changes'
+import { CommentComposer, type UploadImage, uploadImageAttachment, useAttachmentImg } from './drawer-comments'
 import { LiveFeed } from './drawer-live'
 import { ModelOverrideField, overridePatch } from './model-override'
 import {
@@ -191,10 +191,11 @@ function eventText(event: KanbanEvent, k: KanbanText): { detail?: string; label:
 // rendering them raw left `**Goal:**` and backticks literal. Same renderer as
 // chat. `media={false}`: kanban text is not session-scoped, so `MEDIA:` paths
 // must not be resolved against the active gateway.
-function TaskMarkdown({ text }: { text: string }) {
+// `img` lets the comment thread paint the task's own attachments.
+function TaskMarkdown({ img, text }: { img?: ComponentType<ComponentProps<'img'>>; text: string }) {
   return (
     <div className="min-w-0 [&_.aui-md>:first-child]:mt-0 [&_.aui-md>:last-child]:mb-0" data-selectable-text="true">
-      <MessageTextContent media={false} text={text} />
+      <MessageTextContent img={img} media={false} text={text} />
     </div>
   )
 }
@@ -341,95 +342,6 @@ function AssigneeMenu({
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
-  )
-}
-
-// Mirrors the review pane's commit-message field: one row tall to start
-// (button-height), CSS field-sizing grows it with content, button hugs the
-// bottom edge as it grows.
-//
-// On a RUNNING task the worker polls its comment thread and folds new notes
-// into the live turn (OUT-OF-BAND steer), so a plain note reaches the agent
-// mid-run within a few seconds — no block/unblock dance. `onRequeue` is the
-// heavier option: post the note AND reclaim so the task restarts from scratch
-// with the note in context (use when the current run has gone off the rails).
-function CommentComposer({
-  onRequeue,
-  onSubmit,
-  pending,
-  running
-}: {
-  onRequeue?: (body: string) => void
-  onSubmit: (body: string) => void
-  pending: boolean
-  running?: boolean
-}) {
-  const k = useKanban()
-  const [body, setBody] = useState('')
-
-  const submit = () => {
-    const trimmed = body.trim()
-
-    if (trimmed && !pending) {
-      onSubmit(trimmed)
-      setBody('')
-    }
-  }
-
-  const requeue = () => {
-    const trimmed = body.trim()
-
-    if (trimmed && !pending && onRequeue) {
-      onRequeue(trimmed)
-      setBody('')
-    }
-  }
-
-  const empty = !body.trim() || pending
-  const sendLabel = running ? k.send : k.comment
-
-  // Sized like the new-project idea field (default control padding, inset icon
-  // action); a labelled text button floating inside the textarea read as part
-  // of the input.
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="relative">
-        <Textarea
-          className="field-sizing-content max-h-40 resize-none pr-9 text-[0.8125rem]"
-          onChange={event => setBody(event.target.value)}
-          onKeyDown={event => {
-            if (isSubmitEnter(event) && !event.shiftKey) {
-              event.preventDefault()
-              submit()
-            }
-          }}
-          placeholder={running ? k.messageWorker : k.addComment}
-          value={body}
-        />
-        <Tip label={sendLabel}>
-          <Button
-            aria-label={sendLabel}
-            className="absolute top-1 right-1 text-muted-foreground/80 hover:text-foreground"
-            disabled={empty}
-            onClick={submit}
-            size="icon-xs"
-            type="button"
-            variant="ghost"
-          >
-            <Codicon name="arrow-up" size="0.85rem" />
-          </Button>
-        </Tip>
-      </div>
-      {running && onRequeue && (
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[0.625rem] leading-tight text-(--ui-text-quaternary)">{k.deliveredLive}</span>
-          <Button className="shrink-0" disabled={empty} onClick={requeue} size="xs" variant="outline">
-            <Codicon name="debug-restart" size="0.7rem" />
-            {k.requeueWithNote}
-          </Button>
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -697,6 +609,8 @@ function FeedTabs({
   log,
   onComment,
   onRequeue,
+  onUploadImage,
+  readAttachment,
   running
 }: {
   commentPending: boolean
@@ -704,10 +618,13 @@ function FeedTabs({
   log: null | WorkerLog
   onComment: (body: string) => void
   onRequeue: (body: string) => void
+  onUploadImage?: UploadImage
+  readAttachment?: (path: string) => Promise<string>
   running: boolean
 }) {
   const k = useKanban()
   const [tab, setTab] = useState<FeedTab>('comments')
+  const commentImg = useAttachmentImg(detail.attachments, readAttachment)
 
   const hasLog = !!log?.exists && !!log.content
   const hasWorkspace = !!detail.task.workspace_path
@@ -744,19 +661,27 @@ function FeedTabs({
       {tab === 'comments' && (
         <>
           {detail.comments.length > 0 && (
-            <ul className="flex flex-col gap-3">
+            // Comment images are thumbnails, not the chat's full-width previews.
+            <ul className="flex flex-col gap-3 [--image-preview-height:16rem] [--image-preview-max-width:24rem]">
               {detail.comments.map(comment => (
                 <li className="flex flex-col gap-0.5" key={comment.id}>
                   <div className="flex items-baseline gap-2 text-[0.75rem]">
                     <span className="font-medium text-(--ui-text-secondary)">{comment.author}</span>
                     <span className="text-[0.625rem] text-(--ui-text-quaternary)">{ago(comment.created_at)}</span>
                   </div>
-                  <TaskMarkdown text={comment.body} />
+                  <TaskMarkdown img={commentImg} text={comment.body} />
                 </li>
               ))}
             </ul>
           )}
-          <CommentComposer onRequeue={onRequeue} onSubmit={onComment} pending={commentPending} running={running} />
+          <CommentComposer
+            onRequeue={onRequeue}
+            onSubmit={onComment}
+            // Backends without attachments would 404 the upload.
+            onUploadImage={Array.isArray(detail.attachments) ? onUploadImage : undefined}
+            pending={commentPending}
+            running={running}
+          />
         </>
       )}
       {tab === 'live' && <LiveFeed key={detail.task.id} running={running} taskId={detail.task.id} />}
@@ -1050,6 +975,16 @@ export function TaskDrawer({
     onSuccess: invalidate
   })
 
+  // Comment images: the composer owns pending + error feedback; a landed
+  // upload refreshes the sidebar list like a sidebar upload does.
+  const uploadImage: UploadImage = async (file, filename) => {
+    const attachment = await uploadImageAttachment(id!, file, filename)
+
+    invalidate()
+
+    return attachment
+  }
+
   if (!id) {
     return null
   }
@@ -1213,6 +1148,8 @@ export function TaskDrawer({
                     log={log ?? null}
                     onComment={body => commentMut.mutate(body)}
                     onRequeue={body => requeueMut.mutate(body)}
+                    onUploadImage={uploadImage}
+                    readAttachment={detail.readAttachment}
                     running={running}
                   />
                 </div>

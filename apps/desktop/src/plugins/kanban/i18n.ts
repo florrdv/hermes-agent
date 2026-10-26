@@ -161,6 +161,8 @@ type KanbanMessages = {
   attachments: (n: number) => string
   noAttachments: string
   uploadAttachment: string
+  attachImage: string
+  uploadingImage: string
   taskActions: string
   goToChat: string
   goToChatTip: string
@@ -429,6 +431,8 @@ export const en: KanbanMessages = {
   attachments: n => `Attachments · ${n}`,
   noAttachments: 'No attachments yet.',
   uploadAttachment: 'Upload attachment',
+  attachImage: 'Attach image',
+  uploadingImage: 'Uploading image…',
   taskActions: 'Task actions',
   goToChat: 'Go to chat',
   goToChatTip: "Open the chat session the latest run's worker ran in",
@@ -689,6 +693,8 @@ const ja: KanbanMessages = {
   attachments: n => `添付・${n}`,
   noAttachments: 'まだ添付はありません。',
   uploadAttachment: '添付をアップロード',
+  attachImage: '画像を添付',
+  uploadingImage: '画像をアップロード中…',
   taskActions: 'タスクの操作',
   goToChat: 'チャットを開く',
   goToChatTip: '最新の実行でワーカーが使ったチャットセッションを開きます',
@@ -947,6 +953,8 @@ const zh: KanbanMessages = {
   attachments: n => `附件・${n}`,
   noAttachments: '暂无附件。',
   uploadAttachment: '上传附件',
+  attachImage: '附加图片',
+  uploadingImage: '正在上传图片…',
   taskActions: '任务操作',
   goToChat: '前往聊天',
   goToChatTip: '打开最近一次运行中 worker 所在的聊天会话',
@@ -1204,6 +1212,8 @@ const zhHant: KanbanMessages = {
   attachments: n => `附件・${n}`,
   noAttachments: '尚無附件。',
   uploadAttachment: '上傳附件',
+  attachImage: '附加圖片',
+  uploadingImage: '正在上傳圖片…',
   taskActions: '任務操作',
   goToChat: '前往聊天',
   goToChatTip: '開啟最近一次執行中 worker 所在的聊天工作階段',

@@ -168,6 +168,9 @@ type KanbanMessages = {
   imageUploadFailed: (name: string) => string
   imageLoadFailed: (name: string) => string
   taskActions: string
+  chatAbout: string
+  chatAboutTip: string
+  chatAboutFailed: string
   openClaude: string
   openClaudeTip: string
   live: string
@@ -438,6 +441,9 @@ export const en: KanbanMessages = {
   imageUploadFailed: name => `Couldn’t upload ${name}`,
   imageLoadFailed: name => `Couldn’t load image ${name}`,
   taskActions: 'Task actions',
+  chatAbout: 'Chat about this',
+  chatAboutTip: "Start a new chat with this card's context prefilled",
+  chatAboutFailed: 'Couldn’t prefill the new chat',
   openClaude: 'Open Claude Code',
   openClaudeTip: "Open this card's Claude Code session in Warp",
   live: 'Live',
@@ -700,6 +706,9 @@ const ja: KanbanMessages = {
   imageUploadFailed: name => `${name} をアップロードできませんでした`,
   imageLoadFailed: name => `画像 ${name} を読み込めませんでした`,
   taskActions: 'タスクの操作',
+  chatAbout: 'このカードについてチャット',
+  chatAboutTip: 'このカードの情報を入力済みの新しいチャットを開始します',
+  chatAboutFailed: '新しいチャットに内容を入力できませんでした',
   openClaude: 'Claude Code を開く',
   openClaudeTip: 'このカードの Claude Code セッションを Warp で開きます',
   live: 'ライブ',
@@ -960,6 +969,9 @@ const zh: KanbanMessages = {
   imageUploadFailed: name => `无法上传 ${name}`,
   imageLoadFailed: name => `无法加载图片 ${name}`,
   taskActions: '任务操作',
+  chatAbout: '就此聊聊',
+  chatAboutTip: '开始一个预填此卡片上下文的新聊天',
+  chatAboutFailed: '无法预填新聊天',
   openClaude: '打开 Claude Code',
   openClaudeTip: '在 Warp 中打开此卡片的 Claude Code 会话',
   live: '实时',
@@ -1219,6 +1231,9 @@ const zhHant: KanbanMessages = {
   imageUploadFailed: name => `無法上傳 ${name}`,
   imageLoadFailed: name => `無法載入圖片 ${name}`,
   taskActions: '任務操作',
+  chatAbout: '就此聊聊',
+  chatAboutTip: '開始一個預先填入此卡片內容的新聊天',
+  chatAboutFailed: '無法預先填入新聊天',
   openClaude: '開啟 Claude Code',
   openClaudeTip: '在 Warp 中開啟此卡片的 Claude Code 工作階段',
   live: '即時',

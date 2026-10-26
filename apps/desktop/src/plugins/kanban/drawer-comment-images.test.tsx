@@ -31,15 +31,27 @@ let disposeLocales: () => void
 let upload: (filename: string) => Promise<{ attachment: KanbanAttachment | null }>
 
 const rest = vi.fn(async (path: string, options?: PluginRestOptions): Promise<unknown> => {
-  if (path === '/tasks/t_img/attachments' && options?.method === 'POST') {
+  if (/^\/tasks\/t_\w+\/attachments$/.test(path) && options?.method === 'POST') {
     return upload(options.upload!.filename)
+  }
+
+  if (path === '/tasks/t_img/comments' && options?.method === 'POST') {
+    return { ok: true }
+  }
+
+  if (path.startsWith('/attachments/') && options?.method === 'DELETE') {
+    return { ok: true }
   }
 
   if (path === '/tasks/t_img') {
     return detail
   }
 
-  if (path.startsWith('/tasks/t_img/log?')) {
+  if (path === '/tasks/t_two') {
+    return { ...detail, task: { id: 't_two', title: 'Other task', status: 'todo' } }
+  }
+
+  if (/^\/tasks\/t_\w+\/log\?/.test(path)) {
     return { exists: false, content: '', size_bytes: 0, truncated: false }
   }
 
@@ -56,6 +68,10 @@ const rest = vi.fn(async (path: string, options?: PluginRestOptions): Promise<un
 
 const uploads = () =>
   rest.mock.calls.filter(([path, options]) => path.endsWith('/attachments') && options?.method === 'POST')
+
+const deletes = () => rest.mock.calls.filter(([, options]) => options?.method === 'DELETE').map(([path]) => path)
+
+const clipboard = (files: File[], text = '') => ({ files, getData: () => text, types: ['Files'] })
 
 const image = (name: string, type = 'image/png') => new File([new Uint8Array([1, 2, 3])], name, { type })
 
@@ -90,12 +106,30 @@ afterEach(() => {
   rest.mockClear()
 })
 
-const openDrawer = () =>
-  render(
-    <QueryClientProvider client={client}>
-      <TaskDrawer columns={['todo', 'done']} id="t_img" onClose={vi.fn()} onOpen={vi.fn()} />
-    </QueryClientProvider>
-  )
+const drawer = (id: string) => (
+  <QueryClientProvider client={client}>
+    <TaskDrawer columns={['todo', 'done']} id={id} onClose={vi.fn()} onOpen={vi.fn()} />
+  </QueryClientProvider>
+)
+
+const openDrawer = () => render(drawer('t_img'))
+
+// Uploads that land only when the test says so, by filename.
+function heldUploads() {
+  const held = new Map<string, () => void>()
+  upload = filename =>
+    new Promise(resolve => {
+      held.set(filename, () => resolve({ attachment: { id: 3, filename, stored_path: `/att/t_img/${filename}` } }))
+    })
+
+  return held
+}
+
+function pick(files: File[]) {
+  const picker = screen.getByRole('button', { name: en.attachImage }).parentElement!.querySelector('input[type=file]')!
+  Object.defineProperty(picker, 'files', { configurable: true, value: files })
+  fireEvent.change(picker)
+}
 
 async function composerAt(text: string, caret: number) {
   const field = (await screen.findByPlaceholderText(en.addComment)) as HTMLTextAreaElement
@@ -110,7 +144,7 @@ describe('comment composer images', () => {
     openDrawer()
     const field = await composerAt('see  here', 4)
 
-    fireEvent.paste(field, { clipboardData: { files: [image('image.png')], types: ['Files'] } })
+    fireEvent.paste(field, { clipboardData: clipboard([image('image.png')]) })
 
     await waitFor(() => expect(uploads()).toHaveLength(1))
     const filename = uploads()[0][1]!.upload!.filename
@@ -120,7 +154,15 @@ describe('comment composer images', () => {
     await waitFor(() => expect(rest.mock.calls.filter(([path]) => path === '/tasks/t_img').length).toBeGreaterThan(1))
   })
 
-  it('uploads dropped images and leaves non-images alone', async () => {
+  it('lets a clipboard carrying text paste as text, without uploading its image', async () => {
+    openDrawer()
+    const field = await composerAt('', 0)
+
+    expect(fireEvent.paste(field, { clipboardData: clipboard([image('image.png')], 'A1\tB1') })).toBe(true)
+    expect(uploads()).toHaveLength(0)
+  })
+
+  it('uploads dropped images and toasts the non-images it skips', async () => {
     openDrawer()
     const field = await composerAt('', 0)
 
@@ -130,29 +172,21 @@ describe('comment composer images', () => {
 
     await waitFor(() => expect(field.value).toBe('![diagram.jpg](/att/t_img/diagram.jpg)'))
     expect(uploads().map(([, options]) => options!.upload!.filename)).toEqual(['diagram.jpg'])
+    expect($notifications.get()[0]).toMatchObject({ kind: 'warning', message: en.notAnImage('notes.txt') })
   })
 
   it('picks images from the attach button and holds Post until the upload lands', async () => {
-    let land!: () => void
-    upload = filename =>
-      new Promise(resolve => {
-        land = () => resolve({ attachment: { id: 3, filename, stored_path: `/att/t_img/${filename}` } })
-      })
+    const held = heldUploads()
 
     openDrawer()
     const field = await composerAt('draft', 5)
 
-    const picker = screen
-      .getByRole('button', { name: en.attachImage })
-      .parentElement!.querySelector('input[type=file]')!
-
-    Object.defineProperty(picker, 'files', { configurable: true, value: [image('shot.png')] })
-    fireEvent.change(picker)
+    pick([image('shot.png')])
 
     await screen.findByText(en.uploadingImage)
     expect((screen.getByRole('button', { name: en.comment }) as HTMLButtonElement).disabled).toBe(true)
 
-    land()
+    held.get('shot.png')!()
     await waitFor(() => expect(field.value).toBe('draft![shot.png](/att/t_img/shot.png)'))
     expect(screen.queryByText(en.uploadingImage)).toBeNull()
     expect((screen.getByRole('button', { name: en.comment }) as HTMLButtonElement).disabled).toBe(false)
@@ -166,13 +200,74 @@ describe('comment composer images', () => {
     openDrawer()
     const field = await composerAt('keep me', 7)
 
-    fireEvent.paste(field, { clipboardData: { files: [image('image.png')], types: ['Files'] } })
+    fireEvent.paste(field, { clipboardData: clipboard([image('image.png')]) })
 
     await waitFor(() =>
       expect($notifications.get()[0]).toMatchObject({ kind: 'error', message: 'attachment exceeds 25 MB limit' })
     )
     expect(field.value).toBe('keep me')
     expect(screen.queryByText(en.uploadingImage)).toBeNull()
+  })
+
+  it('refuses an image the thread could not read back, before uploading it', async () => {
+    openDrawer()
+    await composerAt('', 0)
+    const big = image('huge.png')
+    Object.defineProperty(big, 'size', { value: 16 * 1024 * 1024 + 1 })
+
+    pick([big])
+
+    expect($notifications.get()[0]).toMatchObject({ kind: 'error', message: en.imageTooLarge('huge.png', 16) })
+    expect(uploads()).toHaveLength(0)
+  })
+
+  it('inserts uploads that land together in landing order, each after the last', async () => {
+    const held = heldUploads()
+
+    openDrawer()
+    const field = await composerAt('draft', 5)
+
+    pick([image('a.png'), image('b.png')])
+    await waitFor(() => expect(held.size).toBe(2))
+
+    held.get('a.png')!()
+    held.get('b.png')!()
+
+    await waitFor(() => expect(field.value).toBe('draft![a.png](/att/t_img/a.png)![b.png](/att/t_img/b.png)'))
+  })
+
+  it("keeps a card's draft and in-flight uploads out of the next card, and deletes the orphan", async () => {
+    const held = heldUploads()
+
+    const { rerender } = openDrawer()
+    await composerAt('', 0)
+    pick([image('late.png')])
+    await waitFor(() => expect(held.size).toBe(1))
+
+    rerender(drawer('t_two'))
+    await screen.findByText('Other task')
+    held.get('late.png')!()
+
+    await waitFor(() => expect(deletes()).toEqual(['/attachments/3']))
+    expect(((await screen.findByPlaceholderText(en.addComment)) as HTMLTextAreaElement).value).toBe('')
+  })
+
+  it('deletes images left in an abandoned draft but keeps posted ones', async () => {
+    let next = 0
+    upload = async filename => ({ attachment: { id: ++next, filename, stored_path: `/att/t_img/${filename}` } })
+
+    const { unmount } = openDrawer()
+    const field = await composerAt('', 0)
+
+    pick([image('posted.png')])
+    await waitFor(() => expect(field.value).toBe('![posted.png](/att/t_img/posted.png)'))
+    fireEvent.click(screen.getByRole('button', { name: en.comment }))
+
+    pick([image('dropped.png')])
+    await waitFor(() => expect(field.value).toBe('![dropped.png](/att/t_img/dropped.png)'))
+
+    unmount()
+    expect(deletes()).toEqual(['/attachments/2'])
   })
 })
 
@@ -189,7 +284,6 @@ describe('comment images', () => {
     const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:comment-shot')
     const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
 
-    // The modal portals out of the render container; query inside the dialog.
     detail = {
       ...detail,
       attachments: [{ id: 1, filename: 'shot (1).png', stored_path: stored }],

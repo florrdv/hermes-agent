@@ -7,8 +7,10 @@
 import { Button, cn, Codicon, host, isSubmitEnter, MarkdownImage, Textarea, Tip } from '@hermes/plugin-sdk'
 import {
   type ComponentProps,
-  type ComponentType,
+  createContext,
+  type ReactNode,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -16,25 +18,35 @@ import {
   useState
 } from 'react'
 
-import { uploadAttachment } from './api'
+import { captureAttachmentDelete, uploadAttachment } from './api'
 import type { KanbanAttachment } from './types'
 import { errText, useKanban } from './ui'
 
 export type ReadAttachment = (path: string) => Promise<string>
-export type UploadImage = (file: File, filename: string) => Promise<KanbanAttachment | null>
+/** A landed upload plus the way to take it back (bound to where it landed). */
+export type UploadedImage = KanbanAttachment & { discard: () => Promise<void> }
+export type UploadImage = (file: File, filename: string) => Promise<UploadedImage | null>
+
+// The thread reads an image back as a data URL, which the backend caps at
+// `_FS_DATA_URL_MAX_BYTES` (hermes_cli/web_server.py); a bigger upload would
+// land but never paint.
+export const MAX_COMMENT_IMAGE_MB = 16
 
 export async function uploadImageAttachment(taskId: string, file: File, filename: string) {
+  const discard = captureAttachmentDelete()
+
   const { attachment } = await uploadAttachment(taskId, {
     bytes: await file.arrayBuffer(),
     contentType: file.type || undefined,
     filename
   })
 
-  return attachment
+  return attachment && { ...attachment, discard: () => discard(attachment.id) }
 }
 
-const imageFiles = (files: FileList | null | undefined) =>
-  Array.from(files ?? []).filter(file => file.type.startsWith('image/'))
+const isImage = (file: File) => file.type.startsWith('image/')
+
+const imageFiles = (files: FileList | null | undefined) => Array.from(files ?? []).filter(isImage)
 
 /** Clipboard images arrive as a generic `image.png`; name them by paste time
  *  so the attachments list (and the worker reading it) can tell them apart. */
@@ -55,6 +67,8 @@ export function imageMarkdown(filename: string, path: string): string {
   return `![${alt}](${/[\s()<>]/.test(path) ? `<${escaped.replace(/[<>]/g, '\\$&')}>` : escaped})`
 }
 
+const mentions = (body: string, path: string) => body.includes(path) || body.includes(path.replace(/\\/g, '\\\\'))
+
 // Mirrors the review pane's commit-message field: one row tall to start
 // (button-height), CSS field-sizing grows it with content, button hugs the
 // bottom edge as it grows.
@@ -67,7 +81,9 @@ export function imageMarkdown(filename: string, path: string): string {
 //
 // `onUploadImage` (absent on backends without attachments) turns a pasted,
 // dropped or picked image into a task attachment and inserts its Markdown at
-// the caret; posting waits until every upload has landed.
+// the caret; posting waits until every upload has landed. The draft is one
+// card's: the drawer keys this by task id, and on unmount the images this
+// composer uploaded that no posted note references are deleted again.
 export function CommentComposer({
   onRequeue,
   onSubmit,
@@ -86,7 +102,10 @@ export function CommentComposer({
   const [uploads, setUploads] = useState(0)
   const fieldRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  // Where the next insert goes while earlier ones are still uncommitted, so
+  // uploads landing together queue in order instead of sharing one caret.
   const caretRef = useRef<null | number>(null)
+  const draftRef = useRef({ live: true, posted: [] as string[], uploaded: [] as UploadedImage[] })
 
   useLayoutEffect(() => {
     if (caretRef.current !== null) {
@@ -95,13 +114,30 @@ export function CommentComposer({
     }
   }, [body])
 
+  useEffect(() => {
+    const draft = draftRef.current
+    draft.live = true
+
+    return () => {
+      draft.live = false
+      draft.uploaded
+        .filter(image => !draft.posted.some(posted => mentions(posted, image.stored_path!)))
+        .forEach(discard)
+      draft.uploaded = []
+    }
+  }, [])
+
   const insert = (snippet: string) => {
     const field = fieldRef.current
-    const start = field?.selectionStart ?? body.length
-    const end = field?.selectionEnd ?? start
+    const start = caretRef.current ?? field?.selectionStart ?? null
+    const end = caretRef.current ?? field?.selectionEnd ?? start
 
-    caretRef.current = start + snippet.length
-    setBody(prev => prev.slice(0, start) + snippet + prev.slice(end))
+    caretRef.current = (start ?? body.length) + snippet.length
+    setBody(prev => {
+      const at = Math.min(start ?? prev.length, prev.length)
+
+      return prev.slice(0, at) + snippet + prev.slice(Math.max(at, Math.min(end ?? at, prev.length)))
+    })
   }
 
   const upload = async (file: File, filename = file.name) => {
@@ -109,13 +145,24 @@ export function CommentComposer({
       return
     }
 
+    if (file.size > MAX_COMMENT_IMAGE_MB * 1024 * 1024) {
+      host.notify({ kind: 'error', message: k.imageTooLarge(filename, MAX_COMMENT_IMAGE_MB) })
+
+      return
+    }
+
     setUploads(n => n + 1)
 
     try {
-      const attachment = await onUploadImage(file, filename)
+      const image = await onUploadImage(file, filename)
 
-      if (attachment?.stored_path) {
-        insert(imageMarkdown(attachment.filename, attachment.stored_path))
+      if (!image?.stored_path) {
+        host.notify({ kind: 'error', message: k.imageUploadFailed(filename) })
+      } else if (!draftRef.current.live) {
+        discard(image)
+      } else {
+        draftRef.current.uploaded.push(image)
+        insert(imageMarkdown(image.filename, image.stored_path))
       }
     } catch (err) {
       host.notify({ kind: 'error', message: errText(err) })
@@ -124,20 +171,12 @@ export function CommentComposer({
     }
   }
 
-  const submit = () => {
+  const post = (send: ((body: string) => void) | undefined) => {
     const trimmed = body.trim()
 
-    if (trimmed && !pending && !uploads) {
-      onSubmit(trimmed)
-      setBody('')
-    }
-  }
-
-  const requeue = () => {
-    const trimmed = body.trim()
-
-    if (trimmed && !pending && !uploads && onRequeue) {
-      onRequeue(trimmed)
+    if (trimmed && !pending && !uploads && send) {
+      draftRef.current.posted.push(trimmed)
+      send(trimmed)
       setBody('')
     }
   }
@@ -158,13 +197,21 @@ export function CommentComposer({
           }
         }}
         onDrop={event => {
-          const files = onUploadImage ? imageFiles(event.dataTransfer.files) : []
+          const files = onUploadImage ? Array.from(event.dataTransfer.files ?? []) : []
 
-          if (files.length) {
-            event.preventDefault()
-            event.stopPropagation()
-            files.forEach(file => void upload(file))
+          if (!files.length) {
+            return
           }
+
+          event.preventDefault()
+          event.stopPropagation()
+          const skipped = files.filter(file => !isImage(file))
+
+          if (skipped.length) {
+            host.notify({ kind: 'warning', message: k.notAnImage(skipped.map(file => file.name).join(', ')) })
+          }
+
+          files.filter(isImage).forEach(file => void upload(file))
         }}
       >
         <Textarea
@@ -173,11 +220,14 @@ export function CommentComposer({
           onKeyDown={event => {
             if (isSubmitEnter(event) && !event.shiftKey) {
               event.preventDefault()
-              submit()
+              post(onSubmit)
             }
           }}
           onPaste={event => {
-            const files = onUploadImage ? imageFiles(event.clipboardData.files) : []
+            // A clipboard with text (a copied spreadsheet cell, a rich-text
+            // selection) often carries a rendered image too; the text wins.
+            const files =
+              onUploadImage && !event.clipboardData.getData('text/plain') ? imageFiles(event.clipboardData.files) : []
 
             if (files.length) {
               event.preventDefault()
@@ -224,7 +274,7 @@ export function CommentComposer({
               aria-label={sendLabel}
               className="text-muted-foreground/80 hover:text-foreground"
               disabled={empty}
-              onClick={submit}
+              onClick={() => post(onSubmit)}
               size="icon-xs"
               type="button"
               variant="ghost"
@@ -234,16 +284,18 @@ export function CommentComposer({
           </Tip>
         </div>
       </div>
-      {uploads > 0 && (
-        <span className="flex items-center gap-1 text-[0.625rem] leading-tight text-(--ui-text-quaternary)">
-          <Codicon name="sync" size="0.65rem" spinning />
-          {k.uploadingImage}
-        </span>
-      )}
+      <div aria-live="polite" role="status">
+        {uploads > 0 && (
+          <span className="flex items-center gap-1 text-[0.625rem] leading-tight text-(--ui-text-quaternary)">
+            <Codicon name="sync" size="0.65rem" spinning />
+            {k.uploadingImage}
+          </span>
+        )}
+      </div>
       {running && onRequeue && (
         <div className="flex items-center justify-between gap-2">
           <span className="text-[0.625rem] leading-tight text-(--ui-text-quaternary)">{k.deliveredLive}</span>
-          <Button className="shrink-0" disabled={empty} onClick={requeue} size="xs" variant="outline">
+          <Button className="shrink-0" disabled={empty} onClick={() => post(onRequeue)} size="xs" variant="outline">
             <Codicon name="debug-restart" size="0.7rem" />
             {k.requeueWithNote}
           </Button>
@@ -253,12 +305,17 @@ export function CommentComposer({
   )
 }
 
+function discard(image: UploadedImage) {
+  image.discard().catch(err => host.notify({ kind: 'error', message: errText(err) }))
+}
+
 /** A task attachment painted inline. The path lives on the gateway that
  *  returned the task, so its bytes are read through that backend into an
  *  object URL (revoked on unmount); the core image component then supplies
- *  the bounded frame and click-to-zoom. A failed read falls back to the
- *  default image behaviour for the raw path. */
+ *  the bounded frame and click-to-zoom. A failed read says so in a line: the
+ *  raw path means nothing to the active gateway. */
 function AttachmentImage({ alt, path, read }: { alt?: string; path: string; read: ReadAttachment }) {
+  const k = useKanban()
   const [url, setUrl] = useState('')
   const [failed, setFailed] = useState(false)
 
@@ -292,7 +349,11 @@ function AttachmentImage({ alt, path, read }: { alt?: string; path: string; read
   }, [path, read])
 
   if (failed) {
-    return <MarkdownImage alt={alt} src={path} />
+    return (
+      <span className="text-[0.75rem] text-(--ui-text-quaternary)">
+        {k.imageLoadFailed(alt || path.split(/[\\/]/).pop() || path)}
+      </span>
+    )
   }
 
   return url ? <MarkdownImage alt={alt} src={url} /> : null
@@ -306,14 +367,25 @@ const decoded = (src: string) => {
   }
 }
 
-/** The comment thread's `img` component: a source that is one of the task's
- *  attachment paths renders through `AttachmentImage`; anything else keeps the
- *  default. Keyed on the set of paths (not the detail object) so a refetch
- *  doesn't remount every image and re-read its bytes. */
-export function useAttachmentImg(
-  attachments: KanbanAttachment[] | null | undefined,
+interface AttachmentReader {
+  known: ReadonlySet<string>
+  read: ReadAttachment
+}
+
+const AttachmentReaderContext = createContext<AttachmentReader | null>(null)
+
+/** Scopes `CommentImage` to one task's attachments. Keyed on the set of paths
+ *  (not the detail object) so a refetch doesn't re-render every image; a new
+ *  attachment re-renders them without remounting, so none re-reads its bytes. */
+export function AttachmentImages({
+  attachments,
+  children,
+  readAttachment
+}: {
+  attachments: KanbanAttachment[] | null | undefined
+  children: ReactNode
   readAttachment: ReadAttachment | undefined
-): ComponentType<ComponentProps<'img'>> | undefined {
+}) {
   const readRef = useRef(readAttachment)
   readRef.current = readAttachment
   const read = useCallback<ReadAttachment>(path => readRef.current!(path), [])
@@ -325,18 +397,25 @@ export function useAttachmentImg(
 
   const hasReader = !!readAttachment
 
-  return useMemo(() => {
-    if (!paths || !hasReader) {
-      return undefined
-    }
+  const reader = useMemo(
+    () => (paths && hasReader ? { known: new Set(paths.split('\n')), read } : null),
+    [hasReader, paths, read]
+  )
 
-    const known = new Set(paths.split('\n'))
+  return <AttachmentReaderContext.Provider value={reader}>{children}</AttachmentReaderContext.Provider>
+}
 
-    return function CommentImage(props: ComponentProps<'img'>) {
-      const src = typeof props.src === 'string' ? props.src : ''
-      const path = known.has(src) ? src : known.has(decoded(src)) ? decoded(src) : null
+/** The comment thread's `img` component (one stable type): a source that is
+ *  one of the enclosing `AttachmentImages`' paths renders through
+ *  `AttachmentImage`; anything else keeps the default. */
+export function CommentImage(props: ComponentProps<'img'>) {
+  const reader = useContext(AttachmentReaderContext)
+  const src = typeof props.src === 'string' ? props.src : ''
+  const path = !reader ? null : reader.known.has(src) ? src : reader.known.has(decoded(src)) ? decoded(src) : null
 
-      return path ? <AttachmentImage alt={props.alt} path={path} read={read} /> : <MarkdownImage {...props} />
-    }
-  }, [hasReader, paths, read])
+  return path && reader ? (
+    <AttachmentImage alt={props.alt} path={path} read={reader.read} />
+  ) : (
+    <MarkdownImage {...props} />
+  )
 }

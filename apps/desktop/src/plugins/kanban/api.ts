@@ -491,6 +491,21 @@ export const openClaudeSession = (id: string) =>
 export const uploadAttachment = (id: string, upload: { filename: string; contentType?: string; bytes: ArrayBuffer }) =>
   call<{ attachment: KanbanAttachment | null }>(withBoard(`/tasks/${id}/attachments`), { method: 'POST', upload })
 
+/** Deletes an attachment on the board and backend selected NOW. A deferred
+ *  discard must not follow a later switch: attachment ids are per board, so
+ *  the same id elsewhere names someone else's file. After a backend switch it
+ *  does nothing. */
+export function captureAttachmentDelete() {
+  const scope = routedScope()
+  const board = withBoard('')
+
+  return async (id: number | string) => {
+    if (routedScope() === scope) {
+      await call(`/attachments/${id}${board}`, { method: 'DELETE' })
+    }
+  }
+}
+
 export const createBoard = (slug: string, name: string, projectId?: string) =>
   call<{ board: { slug: string } }>('/boards', {
     method: 'POST',

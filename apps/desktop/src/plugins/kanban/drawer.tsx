@@ -56,6 +56,7 @@ import {
   uploadAttachment,
   useKanbanScope
 } from './api'
+import { ChatAboutButton } from './chat-about'
 import { ChangesTab } from './drawer-changes'
 import {
   AttachmentImages,
@@ -1015,6 +1016,7 @@ export function TaskDrawer({
             <div className="ml-auto flex items-center gap-0.5">
               {task && (
                 <>
+                  <ChatAboutButton detail={detail!} onOpened={onClose} />
                   <OpenClaudeButton detail={detail!} />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

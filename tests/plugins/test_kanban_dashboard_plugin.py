@@ -468,6 +468,44 @@ def test_add_comment(client):
     assert comments[0]["body"] == "how's progress?"
     assert comments[0]["author"] == "teknium"
 
+
+def _to_blocked(conn, tid):
+    assert kb.block_task(conn, tid, reason="need input")
+
+
+def _to_review(conn, tid):
+    run = kb.claim_task(conn, tid)
+    assert kb.request_review(conn, tid, summary="look", expected_run_id=run.current_run_id)
+
+
+def _to_running(conn, tid):
+    assert kb.claim_task(conn, tid) is not None
+
+
+def _to_done(conn, tid):
+    assert kb.complete_task(conn, tid, result="done")
+
+
+@pytest.mark.parametrize(("setup", "before", "after", "reopened"), [
+    (_to_blocked, "blocked", "ready", True),
+    (_to_review, "review", "ready", True),
+    (_to_running, "running", "running", False),
+    (_to_done, "done", "done", False),
+])
+def test_ui_comment_reopens_blocked_and_review(client, setup, before, after, reopened):
+    """A human comment is new input: blocked/review go back to ready; other states stay put."""
+    with kbc.connect() as conn:
+        tid = kb.create_task(conn, title="x", assignee="worker")
+        setup(conn, tid)
+        assert kb.get_task(conn, tid).status == before
+
+    r = client.post(f"/api/plugins/kanban/tasks/{tid}/comments", json={"body": "try the other API"})
+    assert r.status_code == 200
+    assert r.json() == {"ok": True, "reopened": reopened, "status": after}
+    with kbc.connect() as conn:
+        assert kb.get_task(conn, tid).status == after
+        assert [c.body for c in kb.list_comments(conn, tid)] == ["try the other API"]
+
 # ---------------------------------------------------------------------------
 # Dispatch nudge
 # ---------------------------------------------------------------------------

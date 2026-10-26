@@ -811,7 +811,25 @@ def add_comment(task_id: str, payload: CommentBody, board: Optional[str] = Query
     with _board_conn(board) as (board, conn):
         _require_task(conn, task_id)
         kanban_db.add_comment(conn, task_id, author=payload.author or "dashboard", body=payload.body)
-        return {"ok": True}
+        reopened = _reopen_on_comment(conn, task_id)
+        task = kanban_db.get_task(conn, task_id)
+        return {"ok": True, "reopened": reopened, "status": task.status if task else None}
+
+
+def _reopen_on_comment(conn, task_id: str) -> bool:
+    """A human comment on a ``blocked``/``review`` card is new input for the worker: send it
+    back to ``ready`` through the same verbs drag-to-Ready uses. Parents not done land it in
+    ``todo`` (re-gated). Workers' own comments (tool/CLI) never take this path."""
+    task = kanban_db.get_task(conn, task_id)
+    if task is None or task.status not in ("blocked", "review"):
+        return False
+    if task.status == "blocked" and not kanban_db.unblock_task(conn, task_id):
+        return False
+    # unblock_task restores ``review`` when the task was blocked out of review; the comment
+    # still asks for rework, so finish the reopen.
+    if kanban_db.get_task(conn, task_id).status == "review":
+        return kanban_db.reopen_review_task(conn, task_id)
+    return True
 
 
 class LinkBody(BaseModel):

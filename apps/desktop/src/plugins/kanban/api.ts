@@ -475,8 +475,15 @@ export const bulkTasks = (ids: string[], patch: Record<string, unknown>) =>
     })
   )
 
+/** A comment on a blocked/review card sends it back to ready (`reopened`), so
+ *  it nudges the dispatcher like a status move. */
 export const addComment = (id: string, body: string) =>
-  call(withBoard(`/tasks/${id}/comments`), { method: 'POST', body: { author: 'desktop', body } })
+  nudged(
+    call<{ ok: boolean; reopened?: boolean; status?: string | null }>(withBoard(`/tasks/${id}/comments`), {
+      method: 'POST',
+      body: { author: 'desktop', body }
+    })
+  )
 
 export const reassignTask = (id: string, profile: string) =>
   nudged(call(withBoard(`/tasks/${id}/reassign`), { method: 'POST', body: { profile, reclaim_first: true } }))

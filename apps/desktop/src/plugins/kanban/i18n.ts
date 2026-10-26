@@ -419,7 +419,7 @@ export const en: KanbanMessages = {
   commentsHelpRunning:
     'This task is running. Your note is folded into the worker’s current turn within a few seconds — no block/unblock dance. “Requeue with note” instead restarts the task from scratch with your note in context.',
   commentsHelp:
-    'Comments are added to the task thread. When a worker picks the task up it reads them as part of its context.',
+    'Comments are added to the task thread. When a worker picks the task up it reads them as part of its context. Commenting on a blocked or in-review card sends it back to Ready.',
   send: 'Send',
   comment: 'Comment',
   messageWorker: 'Message the running worker…',
